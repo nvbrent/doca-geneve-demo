@@ -1,0 +1,10 @@
+{
+    "image": "nvcr.io/nvidia/doca/doca:2.0.2-devel",
+    "customizations": {
+        "vscode": {
+          "extensions": ["ms-vscode.cpptools", "mesonbuild.mesonbuild"]
+        }
+    },
+    "postCreateCommand": ".devcontainer/setup_container.sh",
+    "runArgs": ["--privileged", "--net=host","-v/dev/hugepages:/dev/hugepages","-m8g"]
+}

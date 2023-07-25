@@ -1,0 +1,21 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "gdb",
+            "program": "${workspaceFolder}/build/doca-geneve-demo",
+            "request": "launch",
+            "type": "cppdbg",
+            "args": [
+                "-a17:00.0,dv_flow_en=2,representor=vf[0-63]",
+                "-c0x3",
+                "--",
+                "-l", "60"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

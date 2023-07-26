@@ -51,3 +51,31 @@ int lcore_pkt_proc_func(void *lcore_args);
 void geneve_demo_register_argp_params(void);
 
 extern volatile bool force_quit;
+
+
+#include <doca_flow.h>
+
+#include <geneve_demo.h>
+
+int
+flow_init(
+	struct application_dpdk_config *dpdk_config,
+	struct doca_flow_port *ports[]);
+
+struct doca_flow_pipe*
+create_encap_tunnel_pipe(struct doca_flow_port *port);
+
+struct doca_flow_pipe_entry*
+create_encap_entry(
+	struct doca_flow_pipe *encap_pipe, 
+	struct session_def *session,
+	uint32_t pipe_queue);
+
+struct doca_flow_pipe_entry*
+create_decap_entry(
+	struct doca_flow_pipe *decap_pipe, 
+	struct session_def *session,
+	uint32_t pipe_queue);
+
+struct doca_flow_pipe*
+create_decap_tunnel_pipe(struct doca_flow_port *port);

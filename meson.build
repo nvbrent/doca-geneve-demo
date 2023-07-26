@@ -36,6 +36,7 @@ app_inc_dirs = [include_directories(common_dir_path)]
 
 app_srcs = [
 	'main.c',
+	'flows.c',
 	'pkt_rss.c',
 	'program_args.c',
 	'session_hashtable.c',

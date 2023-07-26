@@ -1,3 +1,9 @@
 {
-    "C_Cpp.default.compileCommands": "build/compile_commands.json"
+    "C_Cpp.default.compileCommands": "build/compile_commands.json",
+    "files.associations": {
+        "rte_hash.h": "c",
+        "geneve_demo.h": "c",
+        "sig_db.h": "c",
+        "utils.h": "c"
+    }
 }

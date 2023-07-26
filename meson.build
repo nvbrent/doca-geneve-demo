@@ -36,7 +36,10 @@ app_inc_dirs = [include_directories(common_dir_path)]
 
 app_srcs = [
 	'main.c',
-	# additional project source files...
+	'pkt_rss.c',
+	'program_args.c',
+	'session_hashtable.c',
+	# DOCA-provided utilities:
 	common_dir_path + '/dpdk_utils.c',
 	common_dir_path + '/offload_rules.c',
 	common_dir_path + '/utils.c',

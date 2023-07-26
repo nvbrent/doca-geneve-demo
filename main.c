@@ -11,25 +11,18 @@
  *
  */
 
-#include <getopt.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <dpdk_utils.h>
-#include <sig_db.h>
-#include <utils.h>
+#include <rte_ethdev.h>
 
+#include <dpdk_utils.h>
 #include <doca_argp.h>
 #include <doca_log.h>
 #include <doca_flow.h>
-
-#include <rte_malloc.h>
-#include <rte_ethdev.h>
-#include <rte_hash.h>
-#include <rte_jhash.h>
 
 #include "geneve_demo.h"
 
@@ -58,149 +51,6 @@ static void install_signal_handler(void)
 {
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// RSS Packet Processing
-
-static int
-packet_parsing_example(const struct rte_mbuf *packet)
-{
-	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(packet, struct rte_ether_hdr *);
-	uint16_t ether_type = htons(eth_hdr->ether_type);
-
-	if (ether_type == RTE_ETHER_TYPE_IPV4) {
-		DOCA_LOG_DBG("Received IPV4");
-	} else if (ether_type == RTE_ETHER_TYPE_IPV6) {
-		DOCA_LOG_DBG("received IPV6");
-	}
-
-	return 0;
-}
-
-#define MAX_RX_BURST_SIZE 256
-
-void
-example_burst_rx(uint16_t port_id, uint16_t queue_id)
-{
-	struct rte_mbuf *rx_packets[MAX_RX_BURST_SIZE];
-
-	uint32_t lcore_id = rte_lcore_id();
-
-	double tsc_to_seconds = 1.0 / (double)rte_get_timer_hz();
-
-	while (!force_quit) {
-		uint64_t t_start = rte_rdtsc();
-
-		uint16_t nb_rx_packets = rte_eth_rx_burst(port_id, queue_id, rx_packets, MAX_RX_BURST_SIZE);
-		for (int i=0; i<nb_rx_packets; i++) {
-			packet_parsing_example(rx_packets[i]);
-		}
-
-		double sec = (double)(rte_rdtsc() - t_start) * tsc_to_seconds;
-
-		if (nb_rx_packets) {
-			printf("L-Core %d processed %d packets in %f seconds\n", lcore_id, nb_rx_packets, sec);
-		}
-	}
-}
-
-int
-sample_lcore_func(void *lcore_args)
-{
-	uint32_t lcore_id = rte_lcore_id();
-	uint16_t port_id = (uint16_t)lcore_id; // assumes 1-to-1 mapping
-	uint16_t queue_id = 0; // assumes only 1 queue
-	example_burst_rx(port_id, queue_id);
-	return 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Store data in rte_hash
-
-#define MAX_HT_ENTRIES 4096
-
-struct sample_key
-{
-	rte_be32_t src_ip;
-	rte_be32_t dst_ip;
-};
-
-struct sample_entry
-{
-	struct sample_key key;
-	uint64_t num_packets;
-	uint64_t num_bytes;
-};
-
-struct rte_hash_parameters sample_ht_params = {
-	.name = "sample_ht",
-	.entries = MAX_HT_ENTRIES,
-	.key_len = sizeof(struct sample_key),
-	.hash_func = rte_jhash,
-	.hash_func_init_val = 0,
-	.extra_flag = 0, // see RTE_HASH_EXTRA_FLAGS_RW_CONCURRENCY_LF
-};
-
-void
-sample_hash_ops(void)
-{
-	struct rte_hash * ht = rte_hash_create(&sample_ht_params);
-
-	struct sample_entry * entry = rte_zmalloc(NULL, sizeof(struct sample_entry), 0);
-	entry->key.src_ip = RTE_BE32(0x11223344);
-	entry->key.dst_ip = RTE_BE32(0x55667788);
-	entry->num_packets = 1;
-	entry->num_bytes = 0x1000;
-
-	rte_hash_add_key_data(ht, &entry->key, entry);
-
-	struct sample_key lookup_key = {
-		.src_ip = RTE_BE32(0x11223344),
-		.dst_ip = RTE_BE32(0x55667788),
-	};
-	struct sample_entry * lookup = NULL;
-	if (rte_hash_lookup_data(ht, &lookup_key, (void**)&lookup) >= 0)
-	{
-		rte_hash_del_key(ht, &lookup_key);
-		rte_free(lookup);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Parsing args with argp
-
-struct sample_config
-{
-	// TODO: config fields here
-	bool sample_flag;
-};
-
-static doca_error_t
-sample_callback(void *config, void *param)
-{
-	struct sample_config * sample = config;
-	sample->sample_flag = *(bool *)param;
-	return DOCA_SUCCESS;
-}
-
-void
-sample_register_argp_params(void)
-{
-	struct doca_argp_param * sample_flag_param = NULL;
-	int ret = doca_argp_param_create(&sample_flag_param);
-	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_get_error_string(ret));
-	doca_argp_param_set_short_name(sample_flag_param, "f");
-	doca_argp_param_set_long_name(sample_flag_param, "flag");
-	doca_argp_param_set_description(sample_flag_param, "Sets the sample flag");
-	doca_argp_param_set_callback(sample_flag_param, sample_callback);
-	doca_argp_param_set_type(sample_flag_param, DOCA_ARGP_TYPE_BOOLEAN);
-	ret = doca_argp_register_param(sample_flag_param);
-	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to register program param: %s", doca_get_error_string(ret));
-	
-	// Repeat for each parameter
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -269,7 +119,7 @@ create_encap_tunnel_pipe(struct doca_flow_port *port)
 		.encap = {
 			.outer = {
 				.eth = {
-					.src_mac = ETH_MASK_ALL,
+					//.src_mac = ETH_MASK_ALL,
 					.dst_mac = ETH_MASK_ALL,
 				},
 				.l3_type = DOCA_FLOW_L3_TYPE_IP6,
@@ -282,24 +132,25 @@ create_encap_tunnel_pipe(struct doca_flow_port *port)
 				.type = DOCA_FLOW_TUN_GENEVE,
 				.geneve = {
 					.vni = TUNNEL_ID_ANY,
-					.next_proto = UINT16_MAX,
 				},
 			},
-		},
+		}
 	};
-	struct doca_flow_actions *actions_arr[] = { &actions };
+	struct doca_flow_actions *actions_ptr_arr[] = { &actions };
 
 	struct doca_flow_pipe_cfg cfg = {
 		.attr = {
 			.name = "GENEVE_ENCAP_PIPE",
 			.type = DOCA_FLOW_PIPE_BASIC,
 			.is_root = true,
+			.nb_actions = sizeof(actions_ptr_arr) / sizeof(actions_ptr_arr[0]),
 		},
-		.port = doca_flow_port_switch_get(),
+		.port = doca_flow_port_switch_get(port),
 		.match = &match,
 		.monitor = &mon,
-		.actions = actions_arr,
+		.actions = actions_ptr_arr,
 	};
+
 	struct doca_flow_pipe *pipe = NULL;
 	doca_error_t res = doca_flow_pipe_create(&cfg, &fwd, NULL, &pipe);
 	if (res != DOCA_SUCCESS) {
@@ -327,41 +178,27 @@ create_decap_tunnel_pipe(struct doca_flow_port *port)
 		.type = DOCA_FLOW_FWD_PORT,
 		.port_id = PORT_ID_ANY,
 	};
-	struct doca_flow_actions rewrite_eth_addresses = {
+	struct doca_flow_actions decap_action = {
 		.decap = true,
-		.outer = {
-			.eth = {
-				.src_mac = ETH_MASK_ALL,
-				.dst_mac = ETH_MASK_ALL,
-			},
+		.outer.eth = {
+			//.src_mac = ETH_MASK_ALL,
+			.dst_mac = ETH_MASK_ALL,
 		},
 	};
-	struct doca_flow_actions *actions_arr[] = { &rewrite_eth_addresses };
+	struct doca_flow_actions *actions_arr[] = { &decap_action };
 	
-	struct doca_flow_action_descs promote_eth_type = {
-		.tunnel = {
-			.type = DOCA_FLOW_ACTION_COPY,
-			.copy = {
-				.src.address = &match.inner.eth.type,
-				.dst.address = &match.outer.eth.type,
-				.width = 16,
-			}
-		}
-	};
-	struct doca_flow_action_descs *action_desc_array[] = { &promote_eth_type };
-
 	struct doca_flow_pipe_cfg cfg = {
 		.attr = {
 			.name = "GENEVE_DECAP_PIPE",
 			.type = DOCA_FLOW_PIPE_BASIC,
 			.is_root = true,
+			.nb_actions = sizeof(actions_arr) / sizeof(actions_arr[0]),
 		},
 		.port = port,
 		.match = &match,
 		.monitor = &mon,
 		.actions = actions_arr,
-		// TODO: inner.eth.type is not supported in DOCA 2.0
-		// .action_descs = action_desc_array,
+		.actions_masks = actions_arr,
 	};
 	struct doca_flow_pipe *pipe = NULL;
 	doca_error_t res = doca_flow_pipe_create(&cfg, &fwd, NULL, &pipe);
@@ -402,7 +239,6 @@ create_encap_entry(
 				.type = DOCA_FLOW_TUN_GENEVE,
 				.geneve = {
 					.vni = BUILD_VNI(session->vnet_id),
-					.next_proto = rte_cpu_to_be_16(DOCA_ETHER_TYPE_IPV4),
 				},
 			},
 		},
@@ -460,33 +296,41 @@ create_decap_entry(
 int
 main(int argc, char **argv)
 {
-	struct application_dpdk_config dpdk_config = {
-		.port_config.nb_ports = 2,
-		.port_config.nb_queues = 1,
-		.port_config.nb_hairpin_q = 1,
+	struct geneve_demo_config config = {
+		.dpdk_config = {
+			.port_config = {
+				.nb_ports = 2,
+				.nb_queues = 1,
+				.nb_hairpin_q = 1,
+			},
+		},
 	};
-
-	struct sample_config config;
 
 	struct doca_logger_backend *stdout_logger = NULL;
 	doca_log_create_file_backend(stdout, &stdout_logger);
 	
 	/* Parse cmdline/json arguments */
-	doca_argp_init("SAMPLE", &config);
+	doca_argp_init("doca-geneve-demo", &config);
 	doca_argp_set_dpdk_program(dpdk_init);
-	sample_register_argp_params();
+	geneve_demo_register_argp_params();
 	doca_argp_start(argc, argv);
 
 	install_signal_handler();
 
-	dpdk_queues_and_ports_init(&dpdk_config);
+	dpdk_queues_and_ports_init(&config.dpdk_config);
 
-	uint16_t nb_ports = dpdk_config.port_config.nb_ports;
+	uint16_t nb_ports = config.dpdk_config.port_config.nb_ports;
 	uint16_t uplink_port_id = 0;
 
 	struct doca_flow_port **ports = malloc(nb_ports * sizeof(struct doca_flow_port*));
 
-	flow_init(&dpdk_config, ports);
+	flow_init(&config.dpdk_config, ports);
+
+	// struct doca_flow_parser *parser = NULL;
+	// doca_error_t res = doca_flow_parser_geneve_opt_create(ports[uplink_port_id], NULL, 0, &parser);
+	// if (res != DOCA_SUCCESS)
+	// 	rte_exit(EXIT_FAILURE, "Port %d: Failed to doca_flow_parser_geneve_opt_create(): %d (%s)",
+	// 		uplink_port_id, res, doca_get_error_name(res));
 
 	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(ports[uplink_port_id]);
 	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(ports[uplink_port_id]);
@@ -506,7 +350,7 @@ main(int argc, char **argv)
 	
 	uint32_t lcore_id;
 	RTE_LCORE_FOREACH_WORKER(lcore_id) {
-		rte_eal_remote_launch(sample_lcore_func, &config, lcore_id);
+		rte_eal_remote_launch(lcore_pkt_proc_func, &config, lcore_id);
 	}
 	RTE_LCORE_FOREACH_WORKER(lcore_id) {
 		rte_eal_wait_lcore(lcore_id);

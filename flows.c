@@ -27,7 +27,19 @@ port_init(uint16_t port_id)
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "failed to initialize doca flow port: %d (%s)", res, doca_get_error_name(res));
 	}
-	DOCA_LOG_INFO("Started port %d", port_id);
+
+	struct rte_ether_addr mac_addr;
+	rte_eth_macaddr_get(port_id, &mac_addr);
+
+	DOCA_LOG_INFO("\nStarted port %d: %02x:%02x:%02x:%02x:%02x:%02x\n",
+		port_id,
+		mac_addr.addr_bytes[0],
+		mac_addr.addr_bytes[1],
+		mac_addr.addr_bytes[2],
+		mac_addr.addr_bytes[3],
+		mac_addr.addr_bytes[4],
+		mac_addr.addr_bytes[5]);
+
 	return port;
 }
 
@@ -254,9 +266,13 @@ create_decap_entry(
 struct doca_flow_pipe*
 create_empty_root_pipe(struct doca_flow_port *port,
     struct doca_flow_pipe *uplink_next_pipe,
-    struct doca_flow_pipe *vf_next_pipe)
+    struct doca_flow_pipe *vf_next_pipe,
+    struct geneve_demo_config *config)
 {
 	struct doca_flow_pipe *pipe = NULL;
+
+    if (!config->use_empty_root_pipe)
+        return pipe;
 
     struct doca_flow_pipe_cfg cfg = {
         .attr = {

@@ -54,7 +54,7 @@ main(int argc, char **argv)
 	struct geneve_demo_config config = {
 		.dpdk_config = {
 			.port_config = {
-				.nb_ports = 2,
+				.nb_ports = 0, // updated after dpdk_init()
 				.nb_queues = 1,
 				.nb_hairpin_q = 1,
 			},
@@ -70,6 +70,8 @@ main(int argc, char **argv)
 	geneve_demo_register_argp_params();
 	doca_argp_start(argc, argv);
 	config.use_empty_root_pipe = true; // TODO
+
+	config.dpdk_config.port_config.nb_ports = rte_eth_dev_count_avail(); // attach to the PF and all the available VFs
 
 	install_signal_handler();
 
@@ -90,8 +92,7 @@ main(int argc, char **argv)
 
 	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(ports[uplink_port_id], &config);
 	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(ports[uplink_port_id], &config);
-	if (config.use_empty_root_pipe)
-		(void)create_empty_root_pipe(ports[uplink_port_id], decap_pipe, encap_pipe);
+	create_empty_root_pipe(ports[uplink_port_id], decap_pipe, encap_pipe, &config);
 
 	for (int test=0; test<2; test++) {
 		struct session_def session = {

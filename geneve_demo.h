@@ -86,4 +86,5 @@ struct doca_flow_pipe*
 create_empty_root_pipe(
     struct doca_flow_port *port, 
     struct doca_flow_pipe *uplink_next_pipe,
-    struct doca_flow_pipe *vf_next_pipe);
+    struct doca_flow_pipe *vf_next_pipe,
+    struct geneve_demo_config *config);

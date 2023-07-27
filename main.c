@@ -69,6 +69,7 @@ main(int argc, char **argv)
 	doca_argp_set_dpdk_program(dpdk_init);
 	geneve_demo_register_argp_params();
 	doca_argp_start(argc, argv);
+	config.use_empty_root_pipe = true; // TODO
 
 	install_signal_handler();
 
@@ -87,8 +88,10 @@ main(int argc, char **argv)
 	// 	rte_exit(EXIT_FAILURE, "Port %d: Failed to doca_flow_parser_geneve_opt_create(): %d (%s)",
 	// 		uplink_port_id, res, doca_get_error_name(res));
 
-	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(ports[uplink_port_id]);
-	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(ports[uplink_port_id]);
+	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(ports[uplink_port_id], &config);
+	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(ports[uplink_port_id], &config);
+	if (config.use_empty_root_pipe)
+		(void)create_empty_root_pipe(ports[uplink_port_id], decap_pipe, encap_pipe);
 
 	for (int test=0; test<2; test++) {
 		struct session_def session = {
@@ -103,6 +106,7 @@ main(int argc, char **argv)
 		create_encap_entry(encap_pipe, &session, pipe_queue);
 	}
 	
+#if 0
 	uint32_t lcore_id;
 	RTE_LCORE_FOREACH_WORKER(lcore_id) {
 		rte_eal_remote_launch(lcore_pkt_proc_func, &config, lcore_id);
@@ -110,6 +114,9 @@ main(int argc, char **argv)
 	RTE_LCORE_FOREACH_WORKER(lcore_id) {
 		rte_eal_wait_lcore(lcore_id);
 	}
+#else
+	while (!force_quit) sleep(1);
+#endif
 	
 	for (int i = 0; i < nb_ports; i++) {
 		doca_flow_port_stop(ports[i]);

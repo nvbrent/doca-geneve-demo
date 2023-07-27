@@ -8,7 +8,7 @@ DOCA_LOG_REGISTER(GENEVE_ARGP);
 static doca_error_t
 sample_callback(void *config, void *param)
 {
-	struct geneve_demo_config * sample = config;
+	// struct geneve_demo_config * sample = config;
 	// sample->sample_flag = *(bool *)param;
 	return DOCA_SUCCESS;
 }

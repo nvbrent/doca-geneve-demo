@@ -1,5 +1,6 @@
 #include <doca_flow.h>
 #include <doca_log.h>
+#include <rte_ethdev.h>
 
 #include <geneve_demo.h>
 
@@ -36,7 +37,7 @@ flow_init(
 	struct doca_flow_port *ports[])
 {
 	struct doca_flow_cfg arp_sc_flow_cfg = {
-		.mode_args = "switch,hws,isolated",
+		.mode_args = "switch,hws",
 		.queues = dpdk_config->port_config.nb_queues,
 		.resource.nb_counters = 1024,
 	};
@@ -55,7 +56,7 @@ flow_init(
 }
 
 struct doca_flow_pipe*
-create_encap_tunnel_pipe(struct doca_flow_port *port)
+create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 {
 	struct doca_flow_match match = {
 		.meta.port_meta = PORT_META_ID_ANY,
@@ -86,6 +87,7 @@ create_encap_tunnel_pipe(struct doca_flow_port *port)
 				.type = DOCA_FLOW_TUN_GENEVE,
 				.geneve = {
 					.vni = TUNNEL_ID_ANY,
+                    .next_proto = UINT16_MAX,
 				},
 			},
 		}
@@ -96,8 +98,8 @@ create_encap_tunnel_pipe(struct doca_flow_port *port)
 		.attr = {
 			.name = "GENEVE_ENCAP_PIPE",
 			.type = DOCA_FLOW_PIPE_BASIC,
-			.is_root = true,
 			.nb_actions = sizeof(actions_ptr_arr) / sizeof(actions_ptr_arr[0]),
+            .is_root = !config->use_empty_root_pipe,
 		},
 		.port = doca_flow_port_switch_get(port),
 		.match = &match,
@@ -145,6 +147,7 @@ create_encap_entry(
 				.type = DOCA_FLOW_TUN_GENEVE,
 				.geneve = {
 					.vni = BUILD_VNI(session->vnet_id),
+                    .next_proto = rte_cpu_to_be_16(DOCA_ETHER_TYPE_IPV6),
 				},
 			},
 		},
@@ -162,6 +165,54 @@ create_encap_entry(
 		return NULL;
 	}
 	return entry;
+}
+
+struct doca_flow_pipe*
+create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
+{
+	struct doca_flow_match match = {
+		.tun = {
+			.type = DOCA_FLOW_TUN_GENEVE,
+			.geneve = {
+				.vni = TUNNEL_ID_ANY,
+			},
+		}
+	};
+	struct doca_flow_monitor mon = {
+		.flags = DOCA_FLOW_MONITOR_COUNT,
+	};
+	struct doca_flow_fwd fwd = {
+		.type = DOCA_FLOW_FWD_PORT,
+		.port_id = PORT_ID_ANY,
+	};
+	struct doca_flow_actions decap_action = {
+		.decap = true,
+		.outer.eth = {
+			//.src_mac = ETH_MASK_ALL,
+			.dst_mac = ETH_MASK_ALL,
+		},
+	};
+	struct doca_flow_actions *actions_arr[] = { &decap_action };
+	
+	struct doca_flow_pipe_cfg cfg = {
+		.attr = {
+			.name = "GENEVE_DECAP_PIPE",
+			.type = DOCA_FLOW_PIPE_BASIC,
+			.nb_actions = sizeof(actions_arr) / sizeof(actions_arr[0]),
+            .is_root = !config->use_empty_root_pipe,
+		},
+		.port = port,
+		.match = &match,
+		.monitor = &mon,
+		.actions = actions_arr,
+	};
+	struct doca_flow_pipe *pipe = NULL;
+	doca_error_t res = doca_flow_pipe_create(&cfg, &fwd, NULL, &pipe);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)",
+			cfg.attr.name, res, doca_get_error_name(res));
+	}
+	return pipe;
 }
 
 struct doca_flow_pipe_entry*
@@ -200,50 +251,56 @@ create_decap_entry(
 }
 
 struct doca_flow_pipe*
-create_decap_tunnel_pipe(struct doca_flow_port *port)
+create_empty_root_pipe(struct doca_flow_port *port,
+    struct doca_flow_pipe *uplink_next_pipe,
+    struct doca_flow_pipe *vf_next_pipe)
 {
-	struct doca_flow_match match = {
-		.tun = {
-			.type = DOCA_FLOW_TUN_GENEVE,
-			.geneve = {
-				.vni = TUNNEL_ID_ANY,
-			},
-		}
-	};
-	struct doca_flow_monitor mon = {
-		.flags = DOCA_FLOW_MONITOR_COUNT,
-	};
-	struct doca_flow_fwd fwd = {
-		.type = DOCA_FLOW_FWD_PORT,
-		.port_id = PORT_ID_ANY,
-	};
-	struct doca_flow_actions decap_action = {
-		.decap = true,
-		.outer.eth = {
-			//.src_mac = ETH_MASK_ALL,
-			.dst_mac = ETH_MASK_ALL,
-		},
-	};
-	struct doca_flow_actions *actions_arr[] = { &decap_action };
-	
-	struct doca_flow_pipe_cfg cfg = {
-		.attr = {
-			.name = "GENEVE_DECAP_PIPE",
-			.type = DOCA_FLOW_PIPE_BASIC,
-			.is_root = true,
-			.nb_actions = sizeof(actions_arr) / sizeof(actions_arr[0]),
-		},
-		.port = port,
-		.match = &match,
-		.monitor = &mon,
-		.actions = actions_arr,
-		.actions_masks = actions_arr,
-	};
 	struct doca_flow_pipe *pipe = NULL;
-	doca_error_t res = doca_flow_pipe_create(&cfg, &fwd, NULL, &pipe);
+
+    struct doca_flow_pipe_cfg cfg = {
+        .attr = {
+            .name = "ROOT",
+            .is_root = true,
+            .type = DOCA_FLOW_PIPE_CONTROL,
+        },
+        .port = port,
+    };
+
+	doca_error_t res = doca_flow_pipe_create(&cfg, NULL, NULL, &pipe);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)",
 			cfg.attr.name, res, doca_get_error_name(res));
 	}
+
+    struct doca_flow_pipe_entry *entry = NULL;
+
+    struct doca_flow_match match_mask = {
+        .meta.port_meta = PORT_META_ID_ANY,
+    };
+    struct doca_flow_match match_uplink = {
+        .meta.port_meta = 0,
+    };
+    struct doca_flow_fwd fwd_uplink = {
+        .type = DOCA_FLOW_FWD_PIPE,
+        .next_pipe = uplink_next_pipe,
+    };
+    res = doca_flow_pipe_control_add_entry(
+        0, 1, pipe, &match_uplink, &match_mask, NULL, NULL, NULL, NULL, &fwd_uplink, NULL, &entry);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)",
+			cfg.attr.name, res, doca_get_error_name(res));
+	}
+
+    struct doca_flow_fwd fwd_vf = {
+        .type = DOCA_FLOW_FWD_PIPE,
+        .next_pipe = vf_next_pipe,
+    };
+    res = doca_flow_pipe_control_add_entry(
+        0, 2, pipe, NULL, NULL, NULL, NULL, NULL, NULL, &fwd_vf, NULL, &entry);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)",
+			cfg.attr.name, res, doca_get_error_name(res));
+	}
+
 	return pipe;
 }

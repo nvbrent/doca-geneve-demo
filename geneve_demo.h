@@ -27,6 +27,8 @@ struct geneve_demo_config
 {
 	struct application_dpdk_config dpdk_config;
 
+    bool use_empty_root_pipe;
+
 	// TODO: additional config fields here
 };
 
@@ -63,7 +65,10 @@ flow_init(
 	struct doca_flow_port *ports[]);
 
 struct doca_flow_pipe*
-create_encap_tunnel_pipe(struct doca_flow_port *port);
+create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config);
+
+struct doca_flow_pipe*
+create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config);
 
 struct doca_flow_pipe_entry*
 create_encap_entry(
@@ -78,4 +83,7 @@ create_decap_entry(
 	uint32_t pipe_queue);
 
 struct doca_flow_pipe*
-create_decap_tunnel_pipe(struct doca_flow_port *port);
+create_empty_root_pipe(
+    struct doca_flow_port *port, 
+    struct doca_flow_pipe *uplink_next_pipe,
+    struct doca_flow_pipe *vf_next_pipe);

@@ -74,7 +74,7 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 		.encap = {
 			.outer = {
 				.eth = {
-					//.src_mac = ETH_MASK_ALL,
+					.src_mac = ETH_MASK_ALL,
 					.dst_mac = ETH_MASK_ALL,
 				},
 				.l3_type = DOCA_FLOW_L3_TYPE_IP6,
@@ -101,7 +101,8 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 			.nb_actions = sizeof(actions_ptr_arr) / sizeof(actions_ptr_arr[0]),
             .is_root = !config->use_empty_root_pipe,
 		},
-		.port = doca_flow_port_switch_get(port),
+		//.port = doca_flow_port_switch_get(port), // DOCA 2.2+
+		.port = doca_flow_port_switch_get(),
 		.match = &match,
 		.monitor = &mon,
 		.actions = actions_ptr_arr,
@@ -188,7 +189,7 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	struct doca_flow_actions decap_action = {
 		.decap = true,
 		.outer.eth = {
-			//.src_mac = ETH_MASK_ALL,
+			.src_mac = ETH_MASK_ALL,
 			.dst_mac = ETH_MASK_ALL,
 		},
 	};
@@ -285,7 +286,7 @@ create_empty_root_pipe(struct doca_flow_port *port,
         .next_pipe = uplink_next_pipe,
     };
     res = doca_flow_pipe_control_add_entry(
-        0, 1, pipe, &match_uplink, &match_mask, NULL, NULL, NULL, NULL, &fwd_uplink, NULL, &entry);
+        0, 1, pipe, &match_uplink, &match_mask, NULL, NULL, NULL, &fwd_uplink, &entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)",
 			cfg.attr.name, res, doca_get_error_name(res));
@@ -296,7 +297,7 @@ create_empty_root_pipe(struct doca_flow_port *port,
         .next_pipe = vf_next_pipe,
     };
     res = doca_flow_pipe_control_add_entry(
-        0, 2, pipe, NULL, NULL, NULL, NULL, NULL, NULL, &fwd_vf, NULL, &entry);
+        0, 2, pipe, NULL, NULL, NULL, NULL, NULL, &fwd_vf, &entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)",
 			cfg.attr.name, res, doca_get_error_name(res));

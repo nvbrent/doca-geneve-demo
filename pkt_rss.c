@@ -43,7 +43,7 @@ lcore_pkt_proc_func(void *lcore_args)
 
     // Note lcore_id==0 is reserved for main()
     if (lcore_id == 0)
-        rte_exit(EXIT_FAILURE, "Unexpectedly entered RSS handler from main thread");
+        rte_exit(EXIT_FAILURE, "Unexpectedly entered RSS handler from main thread\n");
 
     --lcore_id;
 

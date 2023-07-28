@@ -23,29 +23,42 @@
 #define PORT_META_ID_ANY UINT32_MAX
 #define TUNNEL_ID_ANY UINT32_MAX
 
+#define KEY_LEN 256
+
+typedef uint8_t ipv6_addr_t[16];
+typedef uint8_t crypto_key_t[KEY_LEN / 8];
+
 struct geneve_demo_config
 {
 	struct application_dpdk_config dpdk_config;
 
-    bool use_empty_root_pipe;
+    uint16_t uplink_port_id; // always 0
 
-	// TODO: additional config fields here
-};
+    struct rte_ether_addr outer_smac;
+    struct rte_ether_addr outer_dmac;
+    ipv6_addr_t outer_src_ip;
 
-struct tunnel_def
-{
-    uint64_t tunnel_id;
-    uint8_t src_ip[16];
-    uint8_t dest_ip[16];
+    struct rte_ether_addr decap_dmac; // TODO: make this per-VF
+    // TODO: per-VF smac, dmac configuration.
+    // For now, just preserve the outer eth addresses.
+
+    int test_machine_instance;
 };
 
 struct session_def
 {
     uint64_t session_id;
-    uint64_t tunnel_id;
     uint16_t vf_port_id;
     uint16_t vnet_id;
-	uint8_t dmac[RTE_ETHER_ADDR_LEN];
+    ipv6_addr_t virt_local_ip;
+    ipv6_addr_t virt_remote_ip;
+    ipv6_addr_t outer_remote_ip;
+
+    crypto_key_t encrypt_key; // TODO: one key per direction?
+    crypto_key_t decrypt_key;
+
+    struct doca_flow_pipe_entry *encap_entry;
+    struct doca_flow_pipe_entry *decap_entry;
 };
 
 int lcore_pkt_proc_func(void *lcore_args);
@@ -74,17 +87,19 @@ struct doca_flow_pipe_entry*
 create_encap_entry(
 	struct doca_flow_pipe *encap_pipe, 
 	struct session_def *session,
-	uint32_t pipe_queue);
+	uint32_t pipe_queue,
+    struct geneve_demo_config *config);
 
 struct doca_flow_pipe_entry*
 create_decap_entry(
 	struct doca_flow_pipe *decap_pipe, 
 	struct session_def *session,
-	uint32_t pipe_queue);
+	uint32_t pipe_queue,
+    struct geneve_demo_config *config);
 
 struct doca_flow_pipe*
-create_empty_root_pipe(
+create_root_pipe(
     struct doca_flow_port *port, 
-    struct doca_flow_pipe *uplink_next_pipe,
-    struct doca_flow_pipe *vf_next_pipe,
+    struct doca_flow_pipe *decap_pipe,
+    struct doca_flow_pipe *encap_pipe,
     struct geneve_demo_config *config);

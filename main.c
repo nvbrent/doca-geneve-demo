@@ -47,7 +47,6 @@ static void install_signal_handler(void)
 
 static void
 insert_test_sessions(
-	int machine_instance,
 	struct doca_flow_pipe *encap_pipe,
 	struct doca_flow_pipe *decap_pipe,
 	struct geneve_demo_config *config)
@@ -174,7 +173,7 @@ main(int argc, char **argv)
 	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(ports[config.uplink_port_id], &config);
 	create_root_pipe(ports[config.uplink_port_id], decap_pipe, encap_pipe, &config);
 
-	insert_test_sessions(1, encap_pipe, decap_pipe, &config);
+	insert_test_sessions(encap_pipe, decap_pipe, &config);
 	
 #if 0
 	uint32_t lcore_id;

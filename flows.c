@@ -153,7 +153,6 @@ create_encap_entry(
 		.type = DOCA_FLOW_FWD_PORT,
 		.port_id = config->uplink_port_id,
 	};
-	//fwd.port_id = 3 - session->vf_port_id; // TODO: DELETE (send to other VF)
 	struct doca_flow_actions actions = {
 		.has_encap = true,
 		.encap = {

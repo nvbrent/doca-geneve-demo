@@ -1,5 +1,7 @@
 *.deb
 *.rpm
 *.so
+*.o
+doca_geneve_demo
 
 build/

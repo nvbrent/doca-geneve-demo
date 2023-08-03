@@ -336,14 +336,16 @@ create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 
 	struct doca_flow_pipe_entry *entry = NULL;
 	match.meta.port_meta = 0;
-	fwd.port_id = 1;
+	
+	fwd.port_id = 1; // TODO: for now, just forward to the first VF
+
 	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, NULL, &entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_get_error_name(res));
 	}
 
-	match.meta.port_meta = 1;
+	match.meta.port_meta = 1; // TODO: for now, just forward from the first VF
 	fwd.port_id = 0;
 	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, NULL, &entry);
 	if (res != DOCA_SUCCESS) {
@@ -419,7 +421,7 @@ create_root_pipe(struct doca_flow_port *port,
 		.type = DOCA_FLOW_FWD_PIPE,
 		.next_pipe = arp_pipe,
 	};
-    res = doca_flow_pipe_control_add_entry(
+	res = doca_flow_pipe_control_add_entry(
         0, priority_arp, pipe, &match_icmp, NULL, NULL, NULL, NULL, &fwd_to_arp_pipe, &entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",

@@ -98,8 +98,12 @@ create_decap_entry(
     struct geneve_demo_config *config);
 
 struct doca_flow_pipe*
+create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config);
+
+struct doca_flow_pipe*
 create_root_pipe(
     struct doca_flow_port *port, 
     struct doca_flow_pipe *decap_pipe,
     struct doca_flow_pipe *encap_pipe,
+	struct doca_flow_pipe *arp_pipe,
     struct geneve_demo_config *config);

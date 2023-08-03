@@ -171,7 +171,8 @@ main(int argc, char **argv)
 
 	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(ports[config.uplink_port_id], &config);
 	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(ports[config.uplink_port_id], &config);
-	create_root_pipe(ports[config.uplink_port_id], decap_pipe, encap_pipe, &config);
+	struct doca_flow_pipe *arp_pipe = create_arp_pipe(ports[config.uplink_port_id], &config);
+	create_root_pipe(ports[config.uplink_port_id], decap_pipe, encap_pipe, arp_pipe, &config);
 
 	insert_test_sessions(encap_pipe, decap_pipe, &config);
 	

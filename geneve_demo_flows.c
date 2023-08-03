@@ -286,10 +286,79 @@ create_decap_entry(
 	return entry;
 }
 
+
+struct doca_flow_pipe*
+create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
+{
+	struct doca_flow_match mask = {
+		.meta = {
+			.port_meta = UINT32_MAX,
+		},
+		.outer = {
+			.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+			.ip6.next_proto = UINT8_MAX,
+		}
+	};
+	struct doca_flow_match match = {
+		.meta = {
+			.port_meta = UINT32_MAX,
+		},
+		.outer = {
+			.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+			.ip6.next_proto = DOCA_PROTO_ICMP6,
+		}
+	};
+
+	struct doca_flow_monitor mon = {
+		.flags = DOCA_FLOW_MONITOR_COUNT,
+	};
+	struct doca_flow_fwd fwd = {
+		.type = DOCA_FLOW_FWD_PORT,
+		.port_id = PORT_ID_ANY,
+	};
+	
+	struct doca_flow_pipe_cfg cfg = {
+		.attr = {
+			.name = "ARP_PIPE",
+			.type = DOCA_FLOW_PIPE_BASIC,
+		},
+		.port = port,
+		.match = &match,
+		.match_mask = &mask,
+		.monitor = &mon,
+	};
+	struct doca_flow_pipe *pipe = NULL;
+	doca_error_t res = doca_flow_pipe_create(&cfg, &fwd, NULL, &pipe);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
+			cfg.attr.name, res, doca_get_error_name(res));
+	}
+
+	struct doca_flow_pipe_entry *entry = NULL;
+	match.meta.port_meta = 0;
+	fwd.port_id = 1;
+	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, NULL, &entry);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
+			cfg.attr.name, res, doca_get_error_name(res));
+	}
+
+	match.meta.port_meta = 1;
+	fwd.port_id = 0;
+	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, NULL, &entry);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
+			cfg.attr.name, res, doca_get_error_name(res));
+	}
+
+	return pipe;
+}
+
 struct doca_flow_pipe*
 create_root_pipe(struct doca_flow_port *port,
     struct doca_flow_pipe *decap_pipe,
     struct doca_flow_pipe *encap_pipe,
+	struct doca_flow_pipe *arp_pipe,
     struct geneve_demo_config *config)
 {
 	struct doca_flow_pipe *pipe = NULL;
@@ -339,6 +408,25 @@ create_root_pipe(struct doca_flow_port *port,
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_get_error_name(res));
 	}
+
+	struct doca_flow_match match_icmp = {
+		.outer = {
+			.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+			.ip6.next_proto = DOCA_PROTO_ICMP6,
+		}
+	};
+	struct doca_flow_fwd fwd_to_arp_pipe = {
+		.type = DOCA_FLOW_FWD_PIPE,
+		.next_pipe = arp_pipe,
+	};
+    res = doca_flow_pipe_control_add_entry(
+        0, priority_arp, pipe, &match_icmp, NULL, NULL, NULL, NULL, &fwd_to_arp_pipe, &entry);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
+			cfg.attr.name, res, doca_get_error_name(res));
+	}
+
+	// TODO: DHCP
 
 	return pipe;
 }

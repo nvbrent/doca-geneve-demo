@@ -35,11 +35,11 @@ common_dir_path = '/opt/mellanox/doca/applications/common/src'
 app_inc_dirs = [include_directories(common_dir_path)]
 
 app_srcs = [
-	'main.c',
-	'flows.c',
-	'pkt_rss.c',
-	'program_args.c',
-	'session_hashtable.c',
+	'geneve_demo_main.c',
+	'geneve_demo_flows.c',
+	'geneve_demo_pkt_rss.c',
+	'geneve_demo_program_args.c',
+	'geneve_demo_session_hashtable.c',
 	# DOCA-provided utilities:
 	common_dir_path + '/dpdk_utils.c',
 	common_dir_path + '/offload_rules.c',

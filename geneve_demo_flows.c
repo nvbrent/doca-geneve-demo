@@ -12,8 +12,8 @@
 DOCA_LOG_REGISTER(GENEVE_FLOWS);
 
 static const uint16_t priority_arp = 1;
-static const uint16_t priority_vf = 3;
-static const uint16_t priority_uplink = 2;
+static const uint16_t priority_uplink_to_vf = 3;
+static const uint16_t priority_vf_to_uplink = 2;
 
 static struct doca_flow_port *
 port_init(uint16_t port_id)
@@ -394,7 +394,7 @@ create_root_pipe(struct doca_flow_port *port,
         .next_pipe = decap_pipe,
     };
     res = doca_flow_pipe_control_add_entry(
-        0, priority_uplink, pipe, &match_uplink, &match_mask, NULL, NULL, NULL, &fwd_uplink, &entry);
+        0, priority_vf_to_uplink, pipe, &match_uplink, &match_mask, NULL, NULL, NULL, &fwd_uplink, &entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_get_error_name(res));
@@ -405,7 +405,7 @@ create_root_pipe(struct doca_flow_port *port,
         .next_pipe = encap_pipe,
     };
     res = doca_flow_pipe_control_add_entry(
-        0, priority_vf, pipe, NULL, NULL, NULL, NULL, NULL, &fwd_vf, &entry);
+        0, priority_uplink_to_vf, pipe, NULL, NULL, NULL, NULL, NULL, &fwd_vf, &entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_get_error_name(res));

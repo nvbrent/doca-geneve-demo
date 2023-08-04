@@ -29,6 +29,28 @@ dmac_callback(void *param, void *config_voidp)
 }
 
 static doca_error_t
+virt_dmac_callback(void *param, void *config_voidp)
+{
+	struct geneve_demo_config * config = config_voidp;
+	const char *param_str = param;
+
+	int octets[RTE_ETHER_ADDR_LEN];
+	int num_octets = sscanf(param_str, "%x:%x:%x:%x:%x:%x",
+		&octets[0], &octets[1],
+		&octets[2], &octets[3],
+		&octets[4], &octets[5]);
+	if (num_octets != 6) {
+		DOCA_LOG_ERR("Failed to parse DMAC: %s", param_str);
+		return DOCA_ERROR_INVALID_VALUE;
+	}
+	for (int i=0; i<RTE_ETHER_ADDR_LEN; i++) {
+		config->decap_dmac.addr_bytes[i] = (uint8_t)octets[i];
+	}
+	DOCA_LOG_INFO("Selected Virtual DMAC " RTE_ETHER_ADDR_PRT_FMT, RTE_ETHER_ADDR_BYTES(&config->decap_dmac));
+	return DOCA_SUCCESS;
+}
+
+static doca_error_t
 src_ip_callback(void *param, void *config_voidp)
 {
 	struct geneve_demo_config * config = config_voidp;
@@ -71,12 +93,26 @@ geneve_demo_register_argp_params(void)
 	if (ret != DOCA_SUCCESS)
 		DOCA_LOG_ERR("Failed to register program param: %s", doca_get_error_string(ret));
 	
+	// TODO: virtual DMAC needs to be configured per-VF
+	struct doca_argp_param * virt_dmac_param = NULL;
+	ret = doca_argp_param_create(&virt_dmac_param);
+	if (ret != DOCA_SUCCESS)
+		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_get_error_string(ret));
+	doca_argp_param_set_short_name(virt_dmac_param, "v");
+	doca_argp_param_set_long_name(virt_dmac_param, "virt-dmac");
+	doca_argp_param_set_description(virt_dmac_param, "Sets the virtual destination MAC addr");
+	doca_argp_param_set_callback(virt_dmac_param, virt_dmac_callback);
+	doca_argp_param_set_type(virt_dmac_param, DOCA_ARGP_TYPE_STRING);
+	ret = doca_argp_register_param(virt_dmac_param);
+	if (ret != DOCA_SUCCESS)
+		DOCA_LOG_ERR("Failed to register program param: %s", doca_get_error_string(ret));
+	
 	struct doca_argp_param * outer_src_ip_param = NULL;
 	ret = doca_argp_param_create(&outer_src_ip_param);
 	if (ret != DOCA_SUCCESS)
 		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_get_error_string(ret));
 	doca_argp_param_set_short_name(outer_src_ip_param, "s");
-	doca_argp_param_set_long_name(outer_src_ip_param, "srcip");
+	doca_argp_param_set_long_name(outer_src_ip_param, "src-ip");
 	doca_argp_param_set_description(outer_src_ip_param, "Sets the src ipv6 addr");
 	doca_argp_param_set_callback(outer_src_ip_param, src_ip_callback);
 	doca_argp_param_set_type(outer_src_ip_param, DOCA_ARGP_TYPE_STRING);

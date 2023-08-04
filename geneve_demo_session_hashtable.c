@@ -9,7 +9,7 @@
 
 #define MAX_HT_ENTRIES (100 * 1024)
 
-DOCA_LOG_REGISTER(GENEVE_HT)
+DOCA_LOG_REGISTER(GENEVE_SESSION_HT)
 
 struct rte_hash_parameters sample_ht_params = {
 	.name = "session_ht",

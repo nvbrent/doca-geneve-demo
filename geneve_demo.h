@@ -52,7 +52,7 @@ struct session_def
     ipv6_addr_t virt_remote_ip;
     ipv6_addr_t outer_remote_ip;
 
-    crypto_key_t encrypt_key; // TODO: one key per direction?
+    crypto_key_t encrypt_key; // TODO: is it necessary to keep keys in memory?
     crypto_key_t decrypt_key;
 
     struct doca_flow_pipe_entry *encap_entry;

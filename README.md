@@ -58,6 +58,7 @@ ip addr add [hostXX-vmYY-ip]/24 dev enp23s0f0v0
 
 -- all hosts --
 ip link set dev enp23s0f0v0 up
+ip link set dev enp23s0f0v1 up
 ip link set dev eth0 up
 ```
 

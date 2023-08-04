@@ -17,16 +17,12 @@
 #include <rte_ether.h>
 #include <offload_rules.h>
 
-#define ETH_MASK_ALL "\xFF\xFF\xFF\xFF\xFF\xFF"
-#define IP6_MASK_ALL { UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX }
-#define PORT_ID_ANY UINT16_MAX
-#define PORT_META_ID_ANY UINT32_MAX
-#define TUNNEL_ID_ANY UINT32_MAX
-
 #define KEY_LEN 256
 
 typedef uint8_t ipv6_addr_t[16];
 typedef uint8_t crypto_key_t[KEY_LEN / 8];
+
+extern volatile bool force_quit;
 
 struct geneve_demo_config
 {
@@ -45,9 +41,11 @@ struct geneve_demo_config
     int test_machine_instance;
 };
 
+typedef uint64_t session_id_t;
+
 struct session_def
 {
-    uint64_t session_id;
+    session_id_t session_id;
     uint16_t vf_port_id;
     uint16_t vnet_id;
     ipv6_addr_t virt_local_ip;
@@ -64,46 +62,3 @@ struct session_def
 int lcore_pkt_proc_func(void *lcore_args);
 
 void geneve_demo_register_argp_params(void);
-
-extern volatile bool force_quit;
-
-
-#include <doca_flow.h>
-
-#include <geneve_demo.h>
-
-int
-flow_init(
-	struct application_dpdk_config *dpdk_config,
-	struct doca_flow_port *ports[]);
-
-struct doca_flow_pipe*
-create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config);
-
-struct doca_flow_pipe*
-create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config);
-
-struct doca_flow_pipe_entry*
-create_encap_entry(
-	struct doca_flow_pipe *encap_pipe, 
-	struct session_def *session,
-	uint32_t pipe_queue,
-    struct geneve_demo_config *config);
-
-struct doca_flow_pipe_entry*
-create_decap_entry(
-	struct doca_flow_pipe *decap_pipe, 
-	struct session_def *session,
-	uint32_t pipe_queue,
-    struct geneve_demo_config *config);
-
-struct doca_flow_pipe*
-create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config);
-
-struct doca_flow_pipe*
-create_root_pipe(
-    struct doca_flow_port *port, 
-    struct doca_flow_pipe *decap_pipe,
-    struct doca_flow_pipe *encap_pipe,
-	struct doca_flow_pipe *arp_pipe,
-    struct geneve_demo_config *config);

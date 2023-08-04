@@ -2,7 +2,7 @@
 #include <doca_log.h>
 #include <rte_ethdev.h>
 
-#include <geneve_demo.h>
+#include <geneve_demo_flows.h>
 
 #ifndef BUILD_VNI
 // see samples/doca_flow/flow_common.h

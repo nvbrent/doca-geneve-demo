@@ -18,13 +18,15 @@
 #include <unistd.h>
 
 #include <rte_ethdev.h>
+#include <rte_malloc.h>
 
 #include <dpdk_utils.h>
-#include <doca_argp.h>
 #include <doca_log.h>
-#include <doca_flow.h>
+#include <doca_argp.h>
 
-#include "geneve_demo.h"
+#include <geneve_demo.h>
+#include <geneve_demo_flows.h>
+#include <geneve_demo_session_hashtable.h>
 
 DOCA_LOG_REGISTER(GENEVE_DEMO);
 
@@ -47,6 +49,7 @@ static void install_signal_handler(void)
 
 static void
 insert_test_sessions(
+	struct rte_hash *session_ht,
 	struct doca_flow_pipe *encap_pipe,
 	struct doca_flow_pipe *decap_pipe,
 	struct geneve_demo_config *config)
@@ -110,10 +113,14 @@ insert_test_sessions(
 	int num_sessions = 2;
 
 	for (int i=0; i<num_sessions; i++) {
+		struct session_def * session = rte_zmalloc(NULL, sizeof(struct session_def), 0);
+		*session = sessions[i];
+
 		uint32_t pipe_queue = 0;
-		sessions[i].decap_entry = create_decap_entry(decap_pipe, &sessions[i], pipe_queue, config);
-		sessions[i].encap_entry = create_encap_entry(encap_pipe, &sessions[i], pipe_queue, config);
-		// TODO: save sessions in a hash table
+		session->decap_entry = create_decap_entry(decap_pipe, &sessions[i], pipe_queue, config);
+		session->encap_entry = create_encap_entry(encap_pipe, &sessions[i], pipe_queue, config);
+		
+		add_session(session_ht, session);
 	}
 }
 
@@ -156,6 +163,8 @@ main(int argc, char **argv)
 	if (rte_eth_macaddr_get(0, &config.outer_smac) != 0)
 		rte_exit(EXIT_FAILURE, "Failed to obtain mac addrs for port 0\n");
 
+	struct rte_hash *session_ht = session_ht_create();
+
 	uint16_t nb_ports = config.dpdk_config.port_config.nb_ports;
 
 	struct doca_flow_port **ports = malloc(nb_ports * sizeof(struct doca_flow_port*));
@@ -174,7 +183,7 @@ main(int argc, char **argv)
 	struct doca_flow_pipe *arp_pipe = create_arp_pipe(ports[config.uplink_port_id], &config);
 	create_root_pipe(ports[config.uplink_port_id], decap_pipe, encap_pipe, arp_pipe, &config);
 
-	insert_test_sessions(encap_pipe, decap_pipe, &config);
+	insert_test_sessions(session_ht, encap_pipe, decap_pipe, &config);
 	
 #if 0
 	uint32_t lcore_id;

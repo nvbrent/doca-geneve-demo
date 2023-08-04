@@ -1,54 +1,57 @@
 #include <rte_hash.h>
 #include <rte_jhash.h>
 #include <rte_malloc.h>
+#include <rte_errno.h>
 
-#include "geneve_demo.h"
+#include <doca_log.h>
 
-#define MAX_HT_ENTRIES 4096
+#include <geneve_demo_session_hashtable.h>
 
-struct sample_key
-{
-	rte_be32_t src_ip;
-	rte_be32_t dst_ip;
-};
+#define MAX_HT_ENTRIES (100 * 1024)
 
-struct sample_entry
-{
-	struct sample_key key;
-	uint64_t num_packets;
-	uint64_t num_bytes;
-};
+DOCA_LOG_REGISTER(GENEVE_HT)
 
 struct rte_hash_parameters sample_ht_params = {
-	.name = "sample_ht",
+	.name = "session_ht",
 	.entries = MAX_HT_ENTRIES,
-	.key_len = sizeof(struct sample_key),
+	.key_len = sizeof(session_id_t),
 	.hash_func = rte_jhash,
 	.hash_func_init_val = 0,
 	.extra_flag = 0, // see RTE_HASH_EXTRA_FLAGS_RW_CONCURRENCY_LF
 };
 
-void
-sample_hash_ops(void)
+struct rte_hash *
+session_ht_create()
 {
 	struct rte_hash * ht = rte_hash_create(&sample_ht_params);
-
-	struct sample_entry * entry = rte_zmalloc(NULL, sizeof(struct sample_entry), 0);
-	entry->key.src_ip = RTE_BE32(0x11223344);
-	entry->key.dst_ip = RTE_BE32(0x55667788);
-	entry->num_packets = 1;
-	entry->num_bytes = 0x1000;
-
-	rte_hash_add_key_data(ht, &entry->key, entry);
-
-	struct sample_key lookup_key = {
-		.src_ip = RTE_BE32(0x11223344),
-		.dst_ip = RTE_BE32(0x55667788),
-	};
-	struct sample_entry * lookup = NULL;
-	if (rte_hash_lookup_data(ht, &lookup_key, (void**)&lookup) >= 0)
-	{
-		rte_hash_del_key(ht, &lookup_key);
-		rte_free(lookup);
+	if (!ht) {
+		rte_exit(EXIT_FAILURE, "failed to initialize session hash_table: %d (%s)\n", rte_errno, rte_strerror(rte_errno));
 	}
+	return ht;
+}
+
+int
+add_session(struct rte_hash * ht, struct session_def *session)
+{
+	int res = rte_hash_add_key_data(ht, &session->session_id, &session);
+	if (res) {
+		DOCA_LOG_ERR("Failed to add session %ld to hash_table: %d (%s)",
+			session->session_id, res, doca_get_error_string(res));
+	}
+	DOCA_LOG_DBG("Added session %ld", session->session_id);
+	return res;
+}
+
+int
+delete_session(struct rte_hash * ht, session_id_t session_id)
+{
+	struct session_def * lookup = NULL;
+	int res = rte_hash_lookup_data(ht, &session_id, (void**)&lookup);
+	if (res >= 0) {
+		rte_hash_del_key(ht, &session_id);
+		rte_free(lookup);
+		return 0;
+	}
+	DOCA_LOG_ERR("Failed to delete session %ld from hash_table", session_id);
+	return res;
 }

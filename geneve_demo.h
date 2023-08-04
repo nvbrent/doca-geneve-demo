@@ -34,10 +34,6 @@ struct geneve_demo_config
     struct rte_ether_addr outer_dmac;
     ipv6_addr_t outer_src_ip;
 
-    struct rte_ether_addr decap_dmac; // TODO: make this per-VF
-    // TODO: per-VF smac, dmac configuration.
-    // For now, just preserve the outer eth addresses.
-
     int test_machine_instance;
 };
 

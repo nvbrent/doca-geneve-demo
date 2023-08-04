@@ -106,7 +106,7 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 				.type = DOCA_FLOW_TUN_GENEVE,
 				.geneve = {
 					.vni = TUNNEL_ID_ANY,
-                    .next_proto = UINT16_MAX,
+                    .next_proto = rte_cpu_to_be_16(DOCA_ETHER_TYPE_TEB),
 				},
 			},
 		}
@@ -164,7 +164,7 @@ create_encap_entry(
 				.type = DOCA_FLOW_TUN_GENEVE,
 				.geneve = {
 					.vni = BUILD_VNI(session->vnet_id),
-                    .next_proto = rte_cpu_to_be_16(DOCA_ETHER_TYPE_IPV6),
+                    .next_proto = rte_cpu_to_be_16(DOCA_ETHER_TYPE_TEB),
 				},
 			},
 		},
@@ -199,7 +199,7 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 			.type = DOCA_FLOW_TUN_GENEVE,
 			.geneve = {
 				.vni = TUNNEL_ID_ANY,
-				.next_proto = rte_cpu_to_be_16(DOCA_ETHER_TYPE_IPV6),
+				.next_proto = rte_cpu_to_be_16(DOCA_ETHER_TYPE_TEB),
 			},
 		},
 		.inner = {
@@ -218,10 +218,6 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	};
 	struct doca_flow_actions decap_action = {
 		.decap = true,
-		.outer.eth = {
-			.src_mac = ETH_MASK_ALL,
-			.dst_mac = ETH_MASK_ALL,
-		},
 	};
 	struct doca_flow_actions *actions_arr[] = { &decap_action };
 	
@@ -272,8 +268,6 @@ create_decap_entry(
 	struct doca_flow_actions actions = {
 		.decap = true,
 	};
-	memcpy(actions.outer.eth.dst_mac, config->decap_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
-	rte_eth_macaddr_get(session->vf_port_id, (struct rte_ether_addr*)actions.outer.eth.src_mac);
 	
 	int flags = DOCA_FLOW_NO_WAIT;
 	struct doca_flow_pipe_entry *entry = NULL;

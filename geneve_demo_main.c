@@ -141,8 +141,6 @@ main(int argc, char **argv)
 		// outer_smac auto-detected below
 		// outer_dmac set by argp
 		// outer_src_ip set by argp
-
-		.decap_dmac.addr_bytes = "\xee\x00\x00\x00\x00\x11", // TODO: configure per-VF smac/dmac
 	};
 
 	struct doca_logger_backend *stdout_logger = NULL;

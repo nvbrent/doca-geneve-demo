@@ -32,7 +32,7 @@ flowchart LR
 
 These instructions assume two hosts, creatively named `host1` and `host2`, potentially connected by an L2 switch.
 
-Some amount of Hugepage memory is required for application initialization.
+Some amount of Hugepage memory is required for application initialization. Several failure messages are possible, including `EAL: FATAL: Cannot get hugepage information.`
 ```
 -- all hosts --
 /opt/mellanox/dpdk/bin/dpdk-hugepages.py -r2G
@@ -40,7 +40,7 @@ Some amount of Hugepage memory is required for application initialization.
 
 The following steps assume the network device was named `enp23s0f0np0` at startup, and enumerated as `0000:17:00.0` on the PCI bus. Replace as necessary.
 
-Each host must have its ConnectX device configured for SRIOV SwitchDev mode, as detailed [here](https://docs.nvidia.com/networking/pages/viewpage.action?pageId=80593054) and outlined below. (TODO: Ensure the representor netdevices are named something better than eth0, eth1, etc.)
+Each host must have its ConnectX device configured for SRIOV SwitchDev mode, as detailed [here](https://docs.nvidia.com/networking/pages/viewpage.action?pageId=80593054) and outlined below. (TODO: Ensure the representor netdevices are named something better than eth0, eth1, etc.) Failure to set the devlink mode to Switchdev may result in errors such as: `failed to create actions_template for port 0`.
 
 _Note: Skip this step if running on a BlueField DPU._
 ```

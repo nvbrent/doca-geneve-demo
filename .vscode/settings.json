@@ -6,6 +6,7 @@
         "sig_db.h": "c",
         "utils.h": "c",
         "stdlib.h": "c",
-        "doca_flow.h": "c"
+        "doca_flow.h": "c",
+        "types.h": "c"
     }
 }

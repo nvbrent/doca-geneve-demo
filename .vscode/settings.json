@@ -7,6 +7,11 @@
         "utils.h": "c",
         "stdlib.h": "c",
         "doca_flow.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "geneve_demo_vnet_conf.h": "c",
+        "doca_log.h": "c",
+        "doca_error.h": "c",
+        "geneve_demo_session_hashtable.h": "c",
+        "rte_ethdev.h": "c"
     }
 }

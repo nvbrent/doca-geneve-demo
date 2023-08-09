@@ -1,0 +1,58 @@
+{
+    "hosts": [
+        {
+            "name": "host1",
+            "ip": "99::11",
+            "mac-addr": "b8:3f:d2:ba:66:1e",
+            "virtual-functions": [
+                { "vf-index": 0, "mac-addr": "a6:f6:36:d1:4e:bd" },
+                { "vf-index": 1, "mac-addr": "2e:bd:e5:5c:f6:cb" }
+            ]
+        },
+        {
+            "name": "host2",
+            "ip": "99::22",
+            "mac-addr": "b8:3f:d2:ba:65:fa",
+            "virtual-functions": [
+                { "vf-index": 0, "mac-addr": "9e:6d:d0:d7:ae:01" },
+                { "vf-index": 1, "mac-addr": "da:6f:57:15:50:e4" }
+            ]
+        }
+    ],
+    "vnets": [
+        {
+            "vnet-id": 101,
+            "hosts": [
+                {
+                    "name": "host1",
+                    "virt-hosts": [
+                        { "vf-index": 0, "ip": "11::cafe" }
+                    ]
+                },
+                {
+                    "name": "host2",
+                    "virt-hosts": [
+                        { "vf-index": 0, "ip": "11::beef" }
+                    ]
+                }
+            ]
+        },
+        {
+            "vnet-id": 102,
+            "hosts": [
+                {
+                    "name": "host1",
+                    "virt-hosts": [
+                        { "vf-index": 1, "ip": "22::cafe" }
+                    ]
+                },
+                {
+                    "name": "host2",
+                    "virt-hosts": [
+                        { "vf-index": 1, "ip": "22::beef" }
+                    ]
+                }
+            ]
+        }
+    ]
+}

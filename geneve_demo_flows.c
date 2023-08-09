@@ -169,10 +169,10 @@ create_encap_entry(
 			},
 		},
 	};
-	memcpy(actions.encap.outer.ip6.src_ip, config->outer_src_ip, 16);
+	memcpy(actions.encap.outer.ip6.src_ip, session->outer_local_ip, 16);
 	memcpy(actions.encap.outer.ip6.dst_ip, session->outer_remote_ip, 16);
-	memcpy(actions.encap.outer.eth.src_mac, config->outer_smac.addr_bytes, RTE_ETHER_ADDR_LEN);
-	memcpy(actions.encap.outer.eth.dst_mac, config->outer_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
+	memcpy(actions.encap.outer.eth.src_mac, session->outer_smac.addr_bytes, RTE_ETHER_ADDR_LEN);
+	memcpy(actions.encap.outer.eth.dst_mac, session->outer_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
 
 	int flags = DOCA_FLOW_NO_WAIT;
 	struct doca_flow_pipe_entry *entry = NULL;
@@ -272,7 +272,7 @@ create_decap_entry(
 	struct doca_flow_actions actions = {
 		.decap = true,
 	};
-	memcpy(actions.outer.eth.dst_mac, config->decap_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
+	memcpy(actions.outer.eth.dst_mac, session->decap_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
 	rte_eth_macaddr_get(session->vf_port_id, (struct rte_ether_addr*)actions.outer.eth.src_mac);
 	
 	int flags = DOCA_FLOW_NO_WAIT;

@@ -16,6 +16,7 @@
 #include <inttypes.h>
 #include <rte_ether.h>
 #include <offload_rules.h>
+#include <doca_flow.h>
 
 #define KEY_LEN 256
 
@@ -29,16 +30,6 @@ struct geneve_demo_config
 	struct application_dpdk_config dpdk_config;
 
     uint16_t uplink_port_id; // always 0
-
-    struct rte_ether_addr outer_smac;
-    struct rte_ether_addr outer_dmac;
-    ipv6_addr_t outer_src_ip;
-
-    struct rte_ether_addr decap_dmac; // TODO: make this per-VF
-    // TODO: per-VF smac, dmac configuration.
-    // For now, just preserve the outer eth addresses.
-
-    int test_machine_instance;
 };
 
 typedef uint64_t session_id_t;
@@ -48,9 +39,18 @@ struct session_def
     session_id_t session_id;
     uint16_t vf_port_id;
     uint16_t vnet_id;
+
+    struct rte_ether_addr outer_smac;
+    struct rte_ether_addr outer_dmac;
+    
+    ipv6_addr_t outer_local_ip;
+    ipv6_addr_t outer_remote_ip;
+
+    // decap_smac will be the mac addr of the port representor
+    struct rte_ether_addr decap_dmac;
+
     ipv6_addr_t virt_local_ip;
     ipv6_addr_t virt_remote_ip;
-    ipv6_addr_t outer_remote_ip;
 
     crypto_key_t encrypt_key; // TODO: is it necessary to keep keys in memory?
     crypto_key_t decrypt_key;
@@ -62,3 +62,13 @@ struct session_def
 int lcore_pkt_proc_func(void *lcore_args);
 
 void geneve_demo_register_argp_params(void);
+
+struct vnet_config_t;
+struct rte_hash;
+
+int load_vnet_conf_sessions(
+    struct geneve_demo_config *demo_config,
+    const struct vnet_config_t *vnet_config,
+    struct rte_hash *session_ht,
+	struct doca_flow_pipe *encap_pipe, 
+	struct doca_flow_pipe *decap_pipe);

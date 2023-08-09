@@ -27,6 +27,7 @@
 #include <geneve_demo.h>
 #include <geneve_demo_flows.h>
 #include <geneve_demo_session_hashtable.h>
+#include <geneve_demo_vnet_conf.h>
 
 DOCA_LOG_REGISTER(GENEVE_DEMO);
 
@@ -47,87 +48,12 @@ static void install_signal_handler(void)
 	signal(SIGTERM, signal_handler);
 }
 
-static void
-insert_test_sessions(
-	struct rte_hash *session_ht,
-	struct doca_flow_pipe *encap_pipe,
-	struct doca_flow_pipe *decap_pipe,
-	struct geneve_demo_config *config)
-{
-	// Define a macro which sets the inner 12 digits of an IPv6 address to zero,
-	// leaving 2 digits before and after.
-	#define ZEROS_X_4 "\x00\x00\x00\x00"
-	#define ZEROS_X_12 ZEROS_X_4 ZEROS_X_4 ZEROS_X_4
-	
-	#define MACHINE1_VNET1_ADDR "\x00\x11" ZEROS_X_12 "\xca\xfe"
-	#define MACHINE2_VNET1_ADDR "\x00\x11" ZEROS_X_12 "\xbe\xef"
-
-	#define MACHINE1_VNET2_ADDR "\x00\x22" ZEROS_X_12 "\xca\xfe"
-	#define MACHINE2_VNET2_ADDR "\x00\x22" ZEROS_X_12 "\xbe\xef"
-
-	struct session_def sessions_instance1[] = {
-		{
-			.session_id = 101,
-			.vf_port_id = 1,
-			.vnet_id = 201,
-			.virt_local_ip   = MACHINE1_VNET1_ADDR,
-			.virt_remote_ip  = MACHINE2_VNET1_ADDR,
-			.outer_remote_ip = "\x00\x99" ZEROS_X_12 "\x00\x22",
-		},
-		{
-			.session_id = 102,
-			.vf_port_id = 2,
-			.vnet_id = 202,
-			.virt_local_ip   = MACHINE1_VNET2_ADDR,
-			.virt_remote_ip  = MACHINE2_VNET2_ADDR,
-			.outer_remote_ip = "\x00\x99" ZEROS_X_12 "\x00\x22",
-		},
-	};
-	struct session_def sessions_instance2[] = {
-		{
-			.session_id = 103,
-			.vf_port_id = 1,
-			.vnet_id = 201,
-			.virt_local_ip   = MACHINE2_VNET1_ADDR,
-			.virt_remote_ip  = MACHINE1_VNET1_ADDR,
-			.outer_remote_ip = "\x00\x99" ZEROS_X_12 "\x00\x11",
-		},
-		{
-			.session_id = 104,
-			.vf_port_id = 2,
-			.vnet_id = 202,
-			.virt_local_ip   = MACHINE2_VNET2_ADDR,
-			.virt_remote_ip  = MACHINE1_VNET2_ADDR,
-			.outer_remote_ip = "\x00\x99" ZEROS_X_12 "\x00\x11",
-		},
-	};
-
-	struct session_def *sessions = NULL;
-	if (config->test_machine_instance == 1)
-		sessions = sessions_instance1;
-	else if (config->test_machine_instance == 2)
-		sessions = sessions_instance2;
-	else
-		return;
-
-	int num_sessions = 2;
-
-	for (int i=0; i<num_sessions; i++) {
-		struct session_def * session = rte_zmalloc(NULL, sizeof(struct session_def), 0);
-		*session = sessions[i];
-
-		uint32_t pipe_queue = 0;
-		session->decap_entry = create_decap_entry(decap_pipe, &sessions[i], pipe_queue, config);
-		session->encap_entry = create_encap_entry(encap_pipe, &sessions[i], pipe_queue, config);
-		
-		add_session(session_ht, session);
-	}
-}
-
-
 int
 main(int argc, char **argv)
 {
+	struct vnet_config_t vnet_config = {};
+	load_vnet_config("dummy_filename.json", &vnet_config);
+
 	struct geneve_demo_config config = {
 		.dpdk_config = {
 			.port_config = {
@@ -137,12 +63,6 @@ main(int argc, char **argv)
 			},
 		},
 		.uplink_port_id = 0,
-
-		// outer_smac auto-detected below
-		// outer_dmac set by argp
-		// outer_src_ip set by argp
-
-		.decap_dmac.addr_bytes = "\xee\x00\x00\x00\x00\x11", // TODO: configure per-VF smac/dmac
 	};
 
 	struct doca_logger_backend *stdout_logger = NULL;
@@ -159,9 +79,6 @@ main(int argc, char **argv)
 	install_signal_handler();
 
 	dpdk_queues_and_ports_init(&config.dpdk_config);
-
-	if (rte_eth_macaddr_get(0, &config.outer_smac) != 0)
-		rte_exit(EXIT_FAILURE, "Failed to obtain mac addrs for port 0\n");
 
 	struct rte_hash *session_ht = session_ht_create();
 
@@ -183,7 +100,7 @@ main(int argc, char **argv)
 	struct doca_flow_pipe *arp_pipe = create_arp_pipe(ports[config.uplink_port_id], &config);
 	create_root_pipe(ports[config.uplink_port_id], decap_pipe, encap_pipe, arp_pipe, &config);
 
-	insert_test_sessions(session_ht, encap_pipe, decap_pipe, &config);
+	load_vnet_conf_sessions(&config, &vnet_config, session_ht, encap_pipe, decap_pipe);
 	
 #if 0
 	uint32_t lcore_id;

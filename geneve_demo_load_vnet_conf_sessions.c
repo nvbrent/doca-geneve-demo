@@ -87,8 +87,10 @@ static void build_session(
 
     struct session_def *session = calloc(1, sizeof(struct session_def));
 
+    uint16_t local_vf_index = local_vm->virt_hosts[0].vf_index; // TODO: bounds check
+
     session->session_id = ++builder_config->next_session_id;
-    session->vf_port_id = local_vm->virt_hosts[0].vf_index + 1; // skip the PF index
+    session->vf_port_id = local_vf_index + 1; // +1 to skip the PF index
     session->vnet_id = local_vm->vnet_id;
 
     session->outer_smac = local_host->mac_addr;
@@ -97,8 +99,7 @@ static void build_session(
     memcpy(session->outer_local_ip, local_host->ip, sizeof(ipv6_addr_t));
     memcpy(session->outer_remote_ip, remote_host->ip, sizeof(ipv6_addr_t));
 
-    uint16_t remote_vf_index = remote_vm->virt_hosts[0].vf_index; // TODO: bounds check
-    session->decap_dmac = remote_host->vfs[remote_vf_index].mac_addr;
+    session->decap_dmac = local_host->vfs[local_vf_index].mac_addr;
 
     memcpy(session->virt_local_ip, local_vm->virt_hosts[0].ip, sizeof(ipv6_addr_t));
     memcpy(session->virt_remote_ip, remote_vm->virt_hosts[0].ip, sizeof(ipv6_addr_t));

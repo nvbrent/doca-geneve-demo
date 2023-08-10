@@ -29,22 +29,22 @@ int load_vnet_config(const char *config_json_path, struct vnet_config_t *config)
     host = &config->physical_hosts.hosts[0];
     host->name = "host1";
     inet_pton(AF_INET6, "99::11", &host->ip);
-    rte_ether_unformat_addr("b8:3f:d2:ba:66:1e", &host->mac_addr);
+    rte_ether_unformat_addr("b8:3f:d2:ba:65:9a", &host->mac_addr);
     host->num_vfs = 2;
     CALLOC_ARRAY(host->vfs, host->num_vfs);
     host->vfs[0].vf_index = 0;
-    rte_ether_unformat_addr("a6:f6:36:d1:4e:bd", &host->vfs[0].mac_addr);
-    rte_ether_unformat_addr("2e:bd:e5:5c:f6:cb", &host->vfs[1].mac_addr);
+    rte_ether_unformat_addr("22:d6:04:82:05:ac", &host->vfs[0].mac_addr);
+    rte_ether_unformat_addr("b2:82:94:b5:d6:3c", &host->vfs[1].mac_addr);
 
     host = &config->physical_hosts.hosts[1];
-    host->name = "host";
+    host->name = "host2";
     inet_pton(AF_INET6, "99::22", &host->ip);
-    rte_ether_unformat_addr("b8:3f:d2:ba:65:fa", &host->mac_addr);
+    rte_ether_unformat_addr("b8:3f:d2:ba:65:ee", &host->mac_addr);
     host->num_vfs = 2;
     CALLOC_ARRAY(host->vfs, host->num_vfs);
     host->vfs[0].vf_index = 0;
-    rte_ether_unformat_addr("9e:6d:d0:d7:ae:01", &host->vfs[0].mac_addr);
-    rte_ether_unformat_addr("da:6f:57:15:50:e4", &host->vfs[1].mac_addr);
+    rte_ether_unformat_addr("c2:b8:0c:93:83:86", &host->vfs[0].mac_addr);
+    rte_ether_unformat_addr("8a:e9:39:09:d1:cd", &host->vfs[1].mac_addr);
 
     config->num_vnets = 2;
     CALLOC_ARRAY(config->vnets, config->num_vnets);

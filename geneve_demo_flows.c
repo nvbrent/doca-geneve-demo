@@ -174,6 +174,26 @@ create_encap_entry(
 	memcpy(actions.encap.outer.eth.src_mac, session->outer_smac.addr_bytes, RTE_ETHER_ADDR_LEN);
 	memcpy(actions.encap.outer.eth.dst_mac, session->outer_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
 
+	if (doca_log_global_level_get() >= DOCA_LOG_LEVEL_INFO) {
+		char match_dst_ip[INET6_ADDRSTRLEN];
+		inet_ntop(AF_INET6, session->virt_remote_ip, match_dst_ip, INET6_ADDRSTRLEN);
+		DOCA_LOG_INFO("Encap-Pipe Match: Session-ID: %ld, VF %d, match-dst-ip: %s",
+			session->session_id, match.meta.port_meta, match_dst_ip);
+
+		char encap_smac[RTE_ETHER_ADDR_FMT_SIZE];
+		char encap_dmac[RTE_ETHER_ADDR_FMT_SIZE];
+		char encap_src_ip[INET6_ADDRSTRLEN];
+		char encap_dst_ip[INET6_ADDRSTRLEN];
+		rte_ether_format_addr(encap_smac, RTE_ETHER_ADDR_FMT_SIZE, &session->outer_smac);
+		rte_ether_format_addr(encap_dmac, RTE_ETHER_ADDR_FMT_SIZE, &session->outer_dmac);
+		inet_ntop(AF_INET6, session->outer_local_ip, encap_src_ip, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, session->outer_remote_ip, encap_dst_ip, INET6_ADDRSTRLEN);
+		DOCA_LOG_INFO("Encap-Pipe Action: src-mac: %s, dst-mac: %s", 
+			encap_smac, encap_dmac);
+		DOCA_LOG_INFO("Encap-Pipe Action: VNI: %d, src-ip: %s, dst-ip: %s", 
+			session->vnet_id, encap_src_ip, encap_dst_ip);
+	}
+
 	int flags = DOCA_FLOW_NO_WAIT;
 	struct doca_flow_pipe_entry *entry = NULL;
 	doca_error_t res = doca_flow_pipe_add_entry(
@@ -273,8 +293,25 @@ create_decap_entry(
 		.decap = true,
 	};
 	memcpy(actions.outer.eth.dst_mac, session->decap_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
-	rte_eth_macaddr_get(session->vf_port_id, (struct rte_ether_addr*)actions.outer.eth.src_mac);
+	struct rte_ether_addr* p_decap_src_mac = (struct rte_ether_addr*)actions.outer.eth.src_mac;
+	rte_eth_macaddr_get(session->vf_port_id, p_decap_src_mac);
 	
+	if (doca_log_global_level_get() >= DOCA_LOG_LEVEL_INFO) {
+		char outer_src_ip[INET6_ADDRSTRLEN];
+		char outer_dst_ip[INET6_ADDRSTRLEN];
+		inet_ntop(AF_INET6, session->outer_remote_ip, outer_src_ip, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, session->outer_local_ip, outer_dst_ip, INET6_ADDRSTRLEN);
+		DOCA_LOG_INFO("Decap-Pipe Match: Session-ID: %ld, VNI %d, match-src-ip: %s match-dst-ip: %s",
+			session->session_id, session->vnet_id, outer_src_ip, outer_dst_ip);
+
+		char decap_smac[RTE_ETHER_ADDR_FMT_SIZE];
+		char decap_dmac[RTE_ETHER_ADDR_FMT_SIZE];
+		rte_ether_format_addr(decap_smac, RTE_ETHER_ADDR_FMT_SIZE, p_decap_src_mac);
+		rte_ether_format_addr(decap_dmac, RTE_ETHER_ADDR_FMT_SIZE, &session->decap_dmac);
+		DOCA_LOG_INFO("Decap-Pipe Action: VF: %d, smac: %s, dmac: %s", 
+			session->vf_port_id, decap_smac, decap_dmac);
+	}
+
 	int flags = DOCA_FLOW_NO_WAIT;
 	struct doca_flow_pipe_entry *entry = NULL;
 	doca_error_t res = doca_flow_pipe_add_entry(

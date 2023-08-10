@@ -17,7 +17,7 @@ struct vnet_flow_builder_config
 	struct doca_flow_pipe *encap_pipe; 
 	struct doca_flow_pipe *decap_pipe;
     const struct vnet_host_t *self;
-    uint32_t next_session_id;
+    session_id_t next_session_id;
 };
 
 static const struct vnet_host_t *
@@ -59,6 +59,7 @@ find_self(uint16_t pf_port_id, const struct vnet_config_t *config)
     for (uint16_t ihost = 0; ihost<config->physical_hosts.num_hosts; ihost++) {
         const struct vnet_host_t *host = &config->physical_hosts.hosts[ihost];
         if (!memcmp(pf_mac_addr.addr_bytes, host->mac_addr.addr_bytes, 6)) {
+            DOCA_LOG_INFO("Found my PF mac addr; hostname is %s", host->name);
             return host;
         }
     }
@@ -87,7 +88,7 @@ static void build_session(
     struct session_def *session = calloc(1, sizeof(struct session_def));
 
     session->session_id = ++builder_config->next_session_id;
-    session->vf_port_id = local_vm->virt_hosts[0].vf_index;
+    session->vf_port_id = local_vm->virt_hosts[0].vf_index + 1; // skip the PF index
     session->vnet_id = local_vm->vnet_id;
 
     session->outer_smac = local_host->mac_addr;
@@ -117,14 +118,15 @@ static void build_session(
     add_session(builder_config->session_ht, session);
 }
 
-static void load_vnet_sessions(
+static uint32_t load_vnet_sessions(
     struct vnet_flow_builder_config *builder_config,
     const struct vnet_t *vnet)
 {
+    uint32_t total_sessions = 0;
     const struct vnet_host_inventory_t *my_host_inv = find_host_inv_by_name(
         builder_config->self->name, vnet);
     if (!my_host_inv) {
-        return; // I have no VMs on this vnet
+        return total_sessions; // I have no VMs on this vnet
     }
 
     // Iterate through every combination of hosts on a given subnet.
@@ -156,8 +158,10 @@ static void load_vnet_sessions(
             build_session(
                 builder_config, remote_host, 
                 my_host_inv, remote_host_inv);
+            ++total_sessions;
         }
     }
+    return total_sessions;
 }
 
 int load_vnet_conf_sessions(
@@ -173,12 +177,19 @@ int load_vnet_conf_sessions(
         .session_ht = session_ht,
         .encap_pipe = encap_pipe,
         .decap_pipe = decap_pipe,
+        .next_session_id = 4000,
     };
     builder_config.self = find_self(demo_config->uplink_port_id, vnet_config);
 
+    uint32_t total_sessions = 0;
     for (uint16_t ivnet=0; ivnet<vnet_config->num_vnets; ivnet++) {
-        load_vnet_sessions(&builder_config, &vnet_config->vnets[ivnet]);
+        uint32_t vlan_sessions = load_vnet_sessions(&builder_config, &vnet_config->vnets[ivnet]);
+        total_sessions += vlan_sessions;
+        DOCA_LOG_INFO("Configured %d session(s) for VLAN %d",
+            vlan_sessions, vnet_config->vnets[ivnet].vnet_id);
     }
+    DOCA_LOG_INFO("Configured %d total session(s) across %d vlans",
+        total_sessions, vnet_config->num_vnets);
 
     return 0;
 }

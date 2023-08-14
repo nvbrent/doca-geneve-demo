@@ -25,8 +25,8 @@ find_phys_host_by_name(
     const char *hostname, 
     const struct vnet_config_t *config)
 {
-    for (uint16_t ihost = 0; ihost<config->physical_hosts.num_hosts; ihost++) {
-        const struct vnet_host_t *host = &config->physical_hosts.hosts[ihost];
+    for (uint16_t ihost = 0; ihost<config->num_hosts; ihost++) {
+        const struct vnet_host_t *host = &config->hosts[ihost];
         if (!strcmp(hostname, host->name)) {
             return host;
         }
@@ -34,15 +34,13 @@ find_phys_host_by_name(
     return NULL;
 }
 
-static const struct vnet_host_inventory_t *
-find_host_inv_by_name(
-    const char *hostname, 
-    const struct vnet_t *vnet)
+static const struct nic_t *
+find_pf(const struct vnet_host_t *host, const struct rte_ether_addr *pf_mac_addr)
 {
-    for (uint16_t i = 0; i < vnet->num_hosts; i++) {
-        const struct vnet_host_inventory_t *host = &vnet->hosts[i];
-        if (!strcmp(hostname, host->host_name)) {
-            return host;
+    for (uint16_t pf_num = 0; pf_num < host->num_nics; pf_num++) {
+        const struct nic_t *pf = &host->nics[pf_num];
+        if (!memcmp(pf_mac_addr->addr_bytes, pf->mac_addr.addr_bytes, 6)) {
+            return pf;
         }
     }
     return NULL;
@@ -56,9 +54,10 @@ find_self(uint16_t pf_port_id, const struct vnet_config_t *config)
 	if (rte_eth_macaddr_get(pf_port_id, &pf_mac_addr) != 0)
 		rte_exit(EXIT_FAILURE, "Failed to obtain mac addrs for port %d\n", pf_port_id);
     
-    for (uint16_t ihost = 0; ihost<config->physical_hosts.num_hosts; ihost++) {
-        const struct vnet_host_t *host = &config->physical_hosts.hosts[ihost];
-        if (!memcmp(pf_mac_addr.addr_bytes, host->mac_addr.addr_bytes, 6)) {
+    for (uint16_t ihost = 0; ihost<config->num_hosts; ihost++) {
+        const struct vnet_host_t *host = &config->hosts[ihost];
+        const struct nic_t *pf = find_pf(host, &pf_mac_addr);
+        if (pf != NULL) {
             DOCA_LOG_INFO("Found my PF mac addr; hostname is %s", host->name);
             return host;
         }
@@ -71,38 +70,67 @@ find_self(uint16_t pf_port_id, const struct vnet_config_t *config)
     return NULL; // cannot get here
 }
 
-static void build_session(
-    struct vnet_flow_builder_config *builder_config,
-    const struct vnet_host_t *remote_host,
-    const struct vnet_host_inventory_t *local_vm,
-    const struct vnet_host_inventory_t *remote_vm)
+static bool
+find_nic_and_vnic(
+    const struct vnet_host_t *host, 
+    const char *vnic_name, 
+    const struct nic_t **nic, 
+    const struct vnic_t **vnic)
 {
-    if (local_vm->num_virt_hosts < 1 || remote_vm->num_virt_hosts < 1)
-        return; // nothing to do
+    for (uint16_t i_pf=0; i_pf < host->num_nics; i_pf++) {
+        const struct nic_t *pf = &host->nics[i_pf];
+        for (uint16_t i_vf=0; i_vf < pf->num_vnics; i_vf++) {
+            const struct vnic_t *vf = &pf->vnics[i_vf];
+            if (strcmp(vf->name, vnic_name) != 0)
+                continue;
+            *nic = pf;
+            *vnic = vf;
+            return true;
+        }
+    }
+    return false;
+}
 
-    if (local_vm->num_virt_hosts > 1 || remote_vm->num_virt_hosts > 1)
-        rte_exit(EXIT_FAILURE, "TODO: support >1 num_virt_hosts");
-    
+static bool build_session(
+    struct vnet_flow_builder_config *builder_config,
+    const char *remote_host_name,
+    const char *local_vnic_name,
+    const char *remote_vnic_name)
+{
     const struct vnet_host_t *local_host = builder_config->self;
-
+    const struct vnet_host_t *remote_host = find_phys_host_by_name(remote_host_name, builder_config->vnet_config);
+    const struct nic_t *local_nic = NULL;
+    const struct vnic_t *local_vnic = NULL;
+    const struct nic_t *remote_nic = NULL;
+    const struct vnic_t *remote_vnic = NULL;
+    if (!find_nic_and_vnic(local_host, local_vnic_name, &local_nic, &local_vnic)) {
+        DOCA_LOG_ERR("Host %s: Unkonwn NIC name: %s", local_host->name, local_vnic_name);
+        return false;
+    }
+    if (!find_nic_and_vnic(remote_host, remote_vnic_name, &remote_nic, &remote_vnic)) {
+        DOCA_LOG_ERR("Host %s: Unkonwn NIC name: %s", remote_host_name, remote_vnic_name);
+        return false;
+    }
+    
     struct session_def *session = calloc(1, sizeof(struct session_def));
 
-    uint16_t local_vf_index = local_vm->virt_hosts[0].vf_index; // TODO: bounds check
+    uint16_t local_vf_index = local_vnic->vf_index; // TODO: bounds check
 
     session->session_id = ++builder_config->next_session_id;
     session->vf_port_id = local_vf_index + 1; // +1 to skip the PF index
-    session->vnet_id = local_vm->vnet_id;
+    session->vnet_id_ingress = remote_vnic->vnet_id_out;
+    session->vnet_id_egress = local_vnic->vnet_id_out;
 
-    session->outer_smac = local_host->mac_addr;
-    session->outer_dmac = remote_host->mac_addr;
+    session->outer_smac = local_nic->mac_addr;
+    session->outer_dmac = remote_nic->mac_addr;
     
-    memcpy(session->outer_local_ip, local_host->ip, sizeof(ipv6_addr_t));
-    memcpy(session->outer_remote_ip, remote_host->ip, sizeof(ipv6_addr_t));
+    memcpy(session->outer_local_ip, local_nic->ip, sizeof(ipv6_addr_t));
+    memcpy(session->outer_remote_ip, remote_nic->ip, sizeof(ipv6_addr_t));
 
-    session->decap_dmac = local_host->vfs[local_vf_index].mac_addr;
+    session->decap_dmac = local_vnic->mac_addr;
 
-    memcpy(session->virt_local_ip, local_vm->virt_hosts[0].ip, sizeof(ipv6_addr_t));
-    memcpy(session->virt_remote_ip, remote_vm->virt_hosts[0].ip, sizeof(ipv6_addr_t));
+    memcpy(session->virt_local_ip, local_vnic->ip, sizeof(ipv6_addr_t));
+    memcpy(session->virt_remote_ip, remote_vnic->ip, sizeof(ipv6_addr_t));
 
     uint32_t pipe_queue = 0;
     session->encap_entry = create_encap_entry(
@@ -113,56 +141,12 @@ static void build_session(
     if (!session->encap_entry || !session->decap_entry) {
         DOCA_LOG_ERR("Failed to create session");
         free(session);
-        return;
+        return false;
     }
     
     add_session(builder_config->session_ht, session);
-}
 
-static uint32_t load_vnet_sessions(
-    struct vnet_flow_builder_config *builder_config,
-    const struct vnet_t *vnet)
-{
-    uint32_t total_sessions = 0;
-    const struct vnet_host_inventory_t *my_host_inv = find_host_inv_by_name(
-        builder_config->self->name, vnet);
-    if (!my_host_inv) {
-        return total_sessions; // I have no VMs on this vnet
-    }
-
-    // Iterate through every combination of hosts on a given subnet.
-    // If either host is 'self', determine which host is local and
-    // which is remote, and build a corresponding session object.
-    for (uint16_t i = 0; i < vnet->num_hosts; i++) {
-        const struct vnet_host_inventory_t *i_host = &vnet->hosts[i];
-        bool i_is_self = i_host == my_host_inv;
-
-        for (uint16_t j = i+1; j < vnet->num_hosts; j++) {
-            const struct vnet_host_inventory_t *j_host = &vnet->hosts[j];
-            bool j_is_self = j_host == my_host_inv;
-
-            if (!i_is_self && !j_is_self) {
-                continue; // I am neither local nor remote
-            }
-            
-            if (i_is_self && j_is_self) {
-                rte_exit(EXIT_FAILURE, "Host %s is listed twice for vnet %d", 
-                    builder_config->self->name, vnet->vnet_id);
-            }
-
-            const struct vnet_host_inventory_t *remote_host_inv = i_is_self ? j_host : i_host;
-            const struct vnet_host_t *remote_host = find_phys_host_by_name(
-                remote_host_inv->host_name, builder_config->vnet_config);
-            if (!remote_host) {
-                rte_exit(EXIT_FAILURE, "Remote host %s not found", remote_host_inv->host_name);
-            }
-            build_session(
-                builder_config, remote_host, 
-                my_host_inv, remote_host_inv);
-            ++total_sessions;
-        }
-    }
-    return total_sessions;
+    return true;
 }
 
 int load_vnet_conf_sessions(
@@ -183,14 +167,24 @@ int load_vnet_conf_sessions(
     builder_config.self = find_self(demo_config->uplink_port_id, vnet_config);
 
     uint32_t total_sessions = 0;
-    for (uint16_t ivnet=0; ivnet<vnet_config->num_vnets; ivnet++) {
-        uint32_t vlan_sessions = load_vnet_sessions(&builder_config, &vnet_config->vnets[ivnet]);
-        total_sessions += vlan_sessions;
-        DOCA_LOG_INFO("Configured %d session(s) for VLAN %d",
-            vlan_sessions, vnet_config->vnets[ivnet].vnet_id);
+    for (uint16_t i=0; i<vnet_config->num_routes; i++) {
+        struct route_t *route = &vnet_config->routes[i];
+        // check each end of the route
+        for (int idx_local=0; idx_local<2; idx_local++) {
+            const char *local_hostname = route->hostname[idx_local];
+            if (strcmp(local_hostname, builder_config.self->name) != 0)
+                continue;
+
+            int idx_remote = idx_local ^ 1;
+            build_session(&builder_config, 
+                route->hostname[idx_remote],
+                route->vnic_name[idx_local],
+                route->vnic_name[idx_remote]);
+            ++total_sessions;
+        }
+        // else, this host isn't involved
     }
-    DOCA_LOG_INFO("Configured %d total session(s) across %d vlans",
-        total_sessions, vnet_config->num_vnets);
+    DOCA_LOG_INFO("Configured %d total session(s)", total_sessions);
 
     return 0;
 }

@@ -163,7 +163,7 @@ create_encap_entry(
 			.tun = {
 				.type = DOCA_FLOW_TUN_GENEVE,
 				.geneve = {
-					.vni = BUILD_VNI(session->vnet_id),
+					.vni = BUILD_VNI(session->vnet_id_egress),
                     .next_proto = rte_cpu_to_be_16(DOCA_ETHER_TYPE_IPV6),
 				},
 			},
@@ -191,7 +191,7 @@ create_encap_entry(
 		DOCA_LOG_INFO("Encap-Pipe Action: src-mac: %s, dst-mac: %s", 
 			encap_smac, encap_dmac);
 		DOCA_LOG_INFO("Encap-Pipe Action: VNI: %d, src-ip: %s, dst-ip: %s", 
-			session->vnet_id, encap_src_ip, encap_dst_ip);
+			session->vnet_id_egress, encap_src_ip, encap_dst_ip);
 	}
 
 	int flags = DOCA_FLOW_NO_WAIT;
@@ -277,7 +277,7 @@ create_decap_entry(
 		.tun = {
 			.type = DOCA_FLOW_TUN_GENEVE,
 			.geneve = {
-				.vni = BUILD_VNI(session->vnet_id),
+				.vni = BUILD_VNI(session->vnet_id_ingress),
 			},
 		},
 		.inner.l3_type = DOCA_FLOW_L3_TYPE_IP6,
@@ -302,7 +302,7 @@ create_decap_entry(
 		inet_ntop(AF_INET6, session->outer_remote_ip, outer_src_ip, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, session->outer_local_ip, outer_dst_ip, INET6_ADDRSTRLEN);
 		DOCA_LOG_INFO("Decap-Pipe Match: Session-ID: %ld, VNI %d, match-src-ip: %s match-dst-ip: %s",
-			session->session_id, session->vnet_id, outer_src_ip, outer_dst_ip);
+			session->session_id, session->vnet_id_ingress, outer_src_ip, outer_dst_ip);
 
 		char decap_smac[RTE_ETHER_ADDR_FMT_SIZE];
 		char decap_dmac[RTE_ETHER_ADDR_FMT_SIZE];

@@ -17,66 +17,52 @@
 // Describes a VF, including its index relateive to the parent PF,
 // and its MAC address.
 // Not to be confused with the corresponding port representor.
-struct virtual_function_t
+struct vnic_t
 {
     uint16_t vf_index;
+    const char *name;
     struct rte_ether_addr mac_addr;
+    struct doca_pci_bdf pci;
+    ipv6_addr_t ip;
+    // The same VNET ID is applied to all outgoing flows on this interface
+    uint32_t vnet_id_out;
 };
 
-// Describes the PF and VFs owned by a physical host
+// Describes a PF, including VFs owned by it.
+// All flows are created on this device.
+struct nic_t
+{
+    const char *name;
+    struct rte_ether_addr mac_addr;
+    struct doca_pci_bdf pci;
+    ipv6_addr_t ip;
+    uint16_t num_vnics;
+    struct vnic_t *vnics;
+};
+
+// Describes a collection of physical and virtual NICs.
 struct vnet_host_t
 {
     const char *name;
-    ipv6_addr_t ip;
-    struct rte_ether_addr mac_addr;
-    uint16_t num_vfs;
-    struct virtual_function_t *vfs;
+    uint16_t num_nics;
+    struct nic_t *nics;
 };
 
-// A list of physical hosts
-struct vnet_host_list_t
+struct route_t
 {
-    uint16_t num_hosts;
-    struct vnet_host_t *hosts;
-};
-
-// Describes the network interface of a virtual host in terms of
-// the physical host which owns it.
-struct vnet_virt_host_t
-{
-    uint16_t vf_index;
-    ipv6_addr_t ip;
-};
-
-// A list of virtual hosts, hosted on the given physical host,
-// which participate on the given virtual network.
-// (Typically only one VM exists for a given vnet.)
-struct vnet_host_inventory_t
-{
-    const char *host_name;
-    uint32_t vnet_id;
-    uint16_t num_virt_hosts;
-    struct vnet_virt_host_t *virt_hosts;
-};
-
-// A list of physical hosts which participate on a given
-// virtual network.
-struct vnet_t
-{
-    uint32_t vnet_id;
-    uint16_t  num_hosts;
-    struct vnet_host_inventory_t *hosts;
+    const char *hostname[2];
+    const char *vnic_name[2];
 };
 
 // A configuration which describes all the physical hosts on
 // a physical network, and all the virtual networks which
-// span the physical hosts, as well as the virtual machines
-// present on the virtual network.
+// span the physical hosts.
 struct vnet_config_t
 {
-    struct vnet_host_list_t physical_hosts;
-    uint16_t num_vnets;
-    struct vnet_t *vnets;
+    uint16_t num_hosts;
+    struct vnet_host_t *hosts;
+    uint16_t num_routes;
+    struct route_t *routes;
 };
 
 int load_vnet_config(const char *config_json_path, struct vnet_config_t *config);

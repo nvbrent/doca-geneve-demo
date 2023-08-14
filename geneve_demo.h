@@ -38,7 +38,8 @@ struct session_def
 {
     session_id_t session_id;
     uint16_t vf_port_id;
-    uint16_t vnet_id;
+    uint16_t vnet_id_ingress;
+    uint16_t vnet_id_egress;
 
     struct rte_ether_addr outer_smac;
     struct rte_ether_addr outer_dmac;

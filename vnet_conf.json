@@ -1,58 +1,69 @@
 {
     "hosts": [
         {
-            "name": "host1",
-            "ip": "99::11",
-            "mac-addr": "b8:3f:d2:ba:66:1e",
-            "virtual-functions": [
-                { "vf-index": 0, "mac-addr": "a6:f6:36:d1:4e:bd" },
-                { "vf-index": 1, "mac-addr": "2e:bd:e5:5c:f6:cb" }
+            "name": "doca-vr-007",
+            "nics": [ 
+                { 
+                    "name": "enp23s0f0np0", 
+                    "mac": "b8:3f:d2:ba:65:9a",
+                    "ip": "99::11",
+                    "pci": "17:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "enp23s0f0v0", 
+                            "pci": "17:00.3", 
+                            "ip": "11::cafe",
+                            "vnid-out": 101
+                        }
+                    ]
+                }
             ]
         },
         {
-            "name": "host2",
-            "ip": "99::22",
-            "mac-addr": "b8:3f:d2:ba:65:fa",
-            "virtual-functions": [
-                { "vf-index": 0, "mac-addr": "9e:6d:d0:d7:ae:01" },
-                { "vf-index": 1, "mac-addr": "da:6f:57:15:50:e4" }
+            "name": "doca-vr-008",
+            "nics": [ 
+                { 
+                    "name": "enp23s0f0np0", 
+                    "mac": "b8:3f:d2:ba:65:ee",
+                    "ip": "99::22",
+                    "pci": "17:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "enp23s0f0v0", 
+                            "pci": "17:00.3", 
+                            "ip": "11::beef",
+                            "vnid-out": 102
+                        }
+                    ]
+                },
+                { 
+                    "name": "enp99s0f0np0", 
+                    "mac": "99:99:99:99:99:99",
+                    "ip": "99::99",
+                    "pci": "99:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "enp99s0f0v0", 
+                            "pci": "99:00.3", 
+                            "ip": "11::9999",
+                            "vnid-out": 199
+                        }
+                    ]
+                }
             ]
         }
     ],
-    "vnets": [
-        {
-            "vnet-id": 101,
-            "hosts": [
-                {
-                    "name": "host1",
-                    "virt-hosts": [
-                        { "vf-index": 0, "ip": "11::cafe" }
-                    ]
-                },
-                {
-                    "name": "host2",
-                    "virt-hosts": [
-                        { "vf-index": 0, "ip": "11::beef" }
-                    ]
-                }
-            ]
-        },
-        {
-            "vnet-id": 102,
-            "hosts": [
-                {
-                    "name": "host1",
-                    "virt-hosts": [
-                        { "vf-index": 1, "ip": "22::cafe" }
-                    ]
-                },
-                {
-                    "name": "host2",
-                    "virt-hosts": [
-                        { "vf-index": 1, "ip": "22::beef" }
-                    ]
-                }
-            ]
-        }
+    "routes": [
+        [
+            { "host": "doca-vr-007", "vnic": "enp23s0f0v0" }, 
+            { "host": "doca-vr-008", "vnic": "enp23s0f0v0" }
+        ],
+        [
+            { "host": "doca-vr-007", "vnic": "enp23s0f0v0" }, 
+            { "host": "doca-vr-008", "vnic": "enp99s0f0v0" }
+        ]
     ]
 }

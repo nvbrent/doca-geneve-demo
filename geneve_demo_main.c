@@ -51,9 +51,6 @@ static void install_signal_handler(void)
 int
 main(int argc, char **argv)
 {
-	struct vnet_config_t vnet_config = {};
-	load_vnet_config("dummy_filename.json", &vnet_config);
-
 	struct geneve_demo_config config = {
 		.dpdk_config = {
 			.port_config = {
@@ -73,6 +70,12 @@ main(int argc, char **argv)
 	doca_argp_set_dpdk_program(dpdk_init);
 	geneve_demo_register_argp_params();
 	doca_argp_start(argc, argv);
+
+	struct vnet_config_t vnet_config = {};
+	doca_error_t result = load_vnet_config("vnet_conf.json", &vnet_config);
+	if (result != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to load config file");
+	}
 
 	config.dpdk_config.port_config.nb_ports = rte_eth_dev_count_avail(); // attach to the PF and all the available VFs
 

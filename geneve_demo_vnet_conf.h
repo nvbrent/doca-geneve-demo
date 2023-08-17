@@ -65,5 +65,5 @@ struct vnet_config_t
     struct route_t *routes;
 };
 
-int load_vnet_config(const char *config_json_path, struct vnet_config_t *config);
+doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t *config);
 

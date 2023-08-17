@@ -46,11 +46,7 @@
     "routes": [
         [
             { "host": "doca-vr-007", "vnic": "enp23s0f0v0" }, 
-            { "host": "doca-vr-008", "vnic": "enp23s0f0v0" }
-        ],
-        [
-            { "host": "doca-vr-007", "vnic": "enp23s0f0v0" }, 
-            { "host": "doca-vr-008", "vnic": "enp99s0f0v0" }
+            { "host": "doca-vr-008", "vnic": "enp23s0f0v0" },
         ]
     ]
 }

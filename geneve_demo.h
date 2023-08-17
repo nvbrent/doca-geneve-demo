@@ -29,6 +29,8 @@ struct geneve_demo_config
 {
 	struct application_dpdk_config dpdk_config;
 
+    const char *vnet_config_file;
+
     uint16_t uplink_port_id; // always 0
 };
 

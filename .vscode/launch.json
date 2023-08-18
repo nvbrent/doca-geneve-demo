@@ -13,7 +13,8 @@
                 "-a17:00.0,dv_flow_en=2,representor=vf[0-63]",
                 "-c0x3",
                 "--",
-                "-l", "60"
+                "-l", "60",
+                "-t", "1"
             ],
             "cwd": "${workspaceFolder}"
         }

@@ -114,7 +114,27 @@ main(int argc, char **argv)
 		rte_eal_wait_lcore(lcore_id);
 	}
 #else
-	while (!force_quit) sleep(1);
+	while (!force_quit) {
+		sleep(5);
+		session_id_t *session_id = NULL;
+		struct session_def *session = NULL;
+		uint32_t session_itr = 0;
+		while (rte_hash_iterate(session_ht, (const void**)&session_id, (void**)&session, &session_itr) >= 0) {
+			struct doca_flow_query flow_stats = {};
+			doca_error_t res = doca_flow_query_entry(session->encap_entry, &flow_stats);
+			if (res == DOCA_SUCCESS) {
+				DOCA_LOG_INFO("Session %ld encap: %ld hits", session->session_id, flow_stats.total_pkts);
+			} else {
+				DOCA_LOG_ERR("Session %ld encap: failed to query stats", session->session_id);
+			}
+			res = doca_flow_query_entry(session->decap_entry, &flow_stats);
+			if (res == DOCA_SUCCESS) {
+				DOCA_LOG_INFO("Session %ld decap: %ld hits", session->session_id, flow_stats.total_pkts);
+			} else {
+				DOCA_LOG_ERR("Session %ld decap: failed to query stats", session->session_id);
+			}
+		}
+	}
 #endif
 	
 	for (int i = 0; i < nb_ports; i++) {

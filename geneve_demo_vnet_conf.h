@@ -22,7 +22,6 @@ struct vnic_t
     uint16_t vf_index;
     const char *name;
     struct rte_ether_addr mac_addr;
-    struct doca_pci_bdf pci;
     ipv6_addr_t ip;
     // The same VNET ID is applied to all outgoing flows on this interface
     uint32_t vnet_id_out;
@@ -34,7 +33,6 @@ struct nic_t
 {
     const char *name;
     struct rte_ether_addr mac_addr;
-    struct doca_pci_bdf pci;
     ipv6_addr_t ip;
     uint16_t num_vnics;
     struct vnic_t *vnics;

@@ -15,6 +15,8 @@ static const uint16_t priority_arp = 1;
 static const uint16_t priority_uplink_to_vf = 3;
 static const uint16_t priority_vf_to_uplink = 2;
 
+static const uint32_t ENTRY_TIMEOUT_USEC = 100;
+
 static struct doca_flow_port *
 port_init(uint16_t port_id)
 {
@@ -47,25 +49,79 @@ port_init(uint16_t port_id)
 	return port;
 }
 
+/*
+ * Entry processing callback
+ *
+ * @entry [in]: entry pointer
+ * @pipe_queue [in]: queue identifier
+ * @status [in]: DOCA Flow entry status
+ * @op [in]: DOCA Flow entry operation
+ * @user_ctx [out]: user context
+ */
+static void
+check_for_valid_entry(struct doca_flow_pipe_entry *entry, /*uint16_t pipe_queue,*/
+		      enum doca_flow_entry_status status, enum doca_flow_entry_op op, void *user_ctx)
+{
+	(void)entry;
+	//(void)pipe_queue;
+
+	struct entries_status *entry_status = (struct entries_status *)user_ctx;
+
+	if (entry_status == NULL || op != DOCA_FLOW_ENTRY_OP_ADD)
+		return;
+	if (status != DOCA_FLOW_ENTRY_STATUS_SUCCESS) {
+		//DOCA_LOG_WARN("%s: status = %d, wanted %d", __FUNCTION__, status, DOCA_FLOW_ENTRY_STATUS_SUCCESS);
+		entry_status->failure = true; /* set failure to true if processing failed */
+	}
+	entry_status->nb_processed++;
+	entry_status->entries_in_queue--;
+}
+
+/*
+ * Process entries and check the returned status
+ *
+ * @port [in]: the port we want to process in
+ * @status [in]: the entries status that was sent to the pipe
+ * @timeout [in]: timeout for the entries process function
+ */
+static doca_error_t
+process_all_entries(
+	const char *pipe_name,
+	struct doca_flow_port *port, 
+	struct entries_status *status, 
+	int timeout_usec)
+{
+	DOCA_LOG_DBG("Pipe %s: processing %d entries...\n", pipe_name, status->entries_in_queue);
+	do {
+		doca_error_t result = doca_flow_entries_process(
+			port, 0, timeout_usec, status->entries_in_queue);
+		if (result != DOCA_SUCCESS || status->failure) {
+			DOCA_LOG_ERR("Failed to process entries: %s", doca_get_error_string(result));
+			return result;
+		}
+	} while (status->entries_in_queue > 0 && !force_quit);
+	return DOCA_SUCCESS;
+}
+
 int
 flow_init(
-	struct application_dpdk_config *dpdk_config,
-	struct doca_flow_port *ports[])
+	struct geneve_demo_config *config)
 {
-	struct doca_flow_cfg arp_sc_flow_cfg = {
+	struct doca_flow_cfg flow_cfg = {
 		.mode_args = "switch,hws",
-		.queues = dpdk_config->port_config.nb_queues,
+		.queues = config->dpdk_config.port_config.nb_queues,
 		.resource.nb_counters = 1024,
+		.cb = check_for_valid_entry,
 	};
 
-	doca_error_t res = doca_flow_init(&arp_sc_flow_cfg);
+	doca_error_t res = doca_flow_init(&flow_cfg);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to init DOCA Flow: %d (%s)\n", res, doca_get_error_name(res));
 	}
 	DOCA_LOG_DBG("DOCA Flow init done");
 
-	for (uint16_t port_id = 0; port_id < dpdk_config->port_config.nb_ports; port_id++) {
-		ports[port_id] = port_init(port_id); // cannot return null
+	for (uint16_t port_id = 0; port_id < config->dpdk_config.port_config.nb_ports; port_id++) {
+		config->ports[port_id] = port_init(port_id); // cannot return null
 	}
 
 	return 0;
@@ -143,6 +199,7 @@ create_encap_entry(
 	uint32_t pipe_queue,
 	struct geneve_demo_config *config)
 {
+	struct entries_status entries_status = {};
 	struct doca_flow_match match = {
 		.meta.port_meta = session->vf_port_id,
 		.outer.l3_type = DOCA_FLOW_L3_TYPE_IP6,
@@ -195,13 +252,16 @@ create_encap_entry(
 	}
 
 	int flags = DOCA_FLOW_NO_WAIT;
+	++entries_status.entries_in_queue;
 	struct doca_flow_pipe_entry *entry = NULL;
 	doca_error_t res = doca_flow_pipe_add_entry(
-		pipe_queue, encap_pipe, &match, &actions, NULL, &fwd, flags, NULL, &entry);
+		pipe_queue, encap_pipe, &match, &actions, NULL, &fwd, flags, &entries_status, &entry);
 	if (res != DOCA_SUCCESS) {
 		DOCA_LOG_ERR("Failed to insert decap flow for session %ld", session->session_id);
 		return NULL;
 	}
+	process_all_entries("ENCAP", config->ports[config->uplink_port_id], &entries_status, ENTRY_TIMEOUT_USEC);
+
 	return entry;
 }
 
@@ -272,6 +332,7 @@ create_decap_entry(
 	uint32_t pipe_queue,
 	struct geneve_demo_config *config)
 {
+	struct entries_status entries_status = {};
 	struct doca_flow_match match = {
 		.outer.l3_type = DOCA_FLOW_L3_TYPE_IP6,
 		.tun = {
@@ -313,13 +374,15 @@ create_decap_entry(
 	}
 
 	int flags = DOCA_FLOW_NO_WAIT;
+	++entries_status.entries_in_queue;
 	struct doca_flow_pipe_entry *entry = NULL;
 	doca_error_t res = doca_flow_pipe_add_entry(
-		pipe_queue, decap_pipe, &match, &actions, NULL, &fwd, flags, NULL, &entry);
+		pipe_queue, decap_pipe, &match, &actions, NULL, &fwd, flags, &entries_status, &entry);
 	if (res != DOCA_SUCCESS) {
 		DOCA_LOG_ERR("Failed to insert decap flow for session %ld", session->session_id);
 		return NULL;
 	}
+	process_all_entries("DECAP", config->ports[config->uplink_port_id], &entries_status, ENTRY_TIMEOUT_USEC);
 	return entry;
 }
 
@@ -327,6 +390,7 @@ create_decap_entry(
 struct doca_flow_pipe*
 create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 {
+	struct entries_status entries_status = {};
 	struct doca_flow_match mask = {
 		.meta = {
 			.port_meta = UINT32_MAX,
@@ -376,7 +440,8 @@ create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 	
 	fwd.port_id = 1; // TODO: for now, just forward to the first VF
 
-	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, NULL, &entry);
+	++entries_status.entries_in_queue;
+	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, &entries_status, &entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_get_error_name(res));
@@ -384,12 +449,15 @@ create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 
 	match.meta.port_meta = 1; // TODO: for now, just forward from the first VF
 	fwd.port_id = 0;
-	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, NULL, &entry);
+	++entries_status.entries_in_queue;
+	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, &entries_status, &entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_get_error_name(res));
 	}
 
+	process_all_entries(cfg.attr.name, port, &entries_status, ENTRY_TIMEOUT_USEC);
+	
 	return pipe;
 }
 

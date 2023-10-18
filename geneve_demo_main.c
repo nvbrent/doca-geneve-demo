@@ -167,9 +167,9 @@ main(int argc, char **argv)
 
 	uint16_t nb_ports = config.dpdk_config.port_config.nb_ports;
 
-	struct doca_flow_port **ports = malloc(nb_ports * sizeof(struct doca_flow_port*));
+	config.ports = malloc(nb_ports * sizeof(struct doca_flow_port*));
 
-	flow_init(&config.dpdk_config, ports);
+	flow_init(&config);
 
 	// Create Geneve Option List here, if desired
 	// struct doca_flow_parser *parser = NULL;
@@ -178,10 +178,10 @@ main(int argc, char **argv)
 	// 	rte_exit(EXIT_FAILURE, "Port %d: Failed to doca_flow_parser_geneve_opt_create(): %d (%s)\n",
 	// 		config.uplink_port_id, res, doca_get_error_name(res));
 
-	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(ports[config.uplink_port_id], &config);
-	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(ports[config.uplink_port_id], &config);
-	struct doca_flow_pipe *arp_pipe = create_arp_pipe(ports[config.uplink_port_id], &config);
-	create_root_pipe(ports[config.uplink_port_id], decap_pipe, encap_pipe, arp_pipe, &config);
+	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(config.ports[config.uplink_port_id], &config);
+	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(config.ports[config.uplink_port_id], &config);
+	struct doca_flow_pipe *arp_pipe = create_arp_pipe(config.ports[config.uplink_port_id], &config);
+	create_root_pipe(config.ports[config.uplink_port_id], decap_pipe, encap_pipe, arp_pipe, &config);
 
 	insert_test_sessions(session_ht, encap_pipe, decap_pipe, &config);
 	
@@ -218,7 +218,7 @@ main(int argc, char **argv)
 #endif
 	
 	for (int i = 0; i < nb_ports; i++) {
-		doca_flow_port_stop(ports[i]);
+		doca_flow_port_stop(config.ports[i]);
 	}
 	doca_flow_destroy();
 	doca_argp_destroy();

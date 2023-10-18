@@ -28,6 +28,8 @@ struct geneve_demo_config
 {
 	struct application_dpdk_config dpdk_config;
 
+	struct doca_flow_port **ports;
+    
     uint16_t uplink_port_id; // always 0
 
     struct rte_ether_addr outer_smac;
@@ -57,6 +59,13 @@ struct session_def
 
     struct doca_flow_pipe_entry *encap_entry;
     struct doca_flow_pipe_entry *decap_entry;
+};
+
+/* user context struct that will be used in entries process callback */
+struct entries_status {
+	bool failure;	      /* will be set to true if some entry status will not be success */
+	int nb_processed;     /* number of entries that was already processed */
+	int entries_in_queue; /* number of entries in queue that is waiting to process */
 };
 
 int lcore_pkt_proc_func(void *lcore_args);

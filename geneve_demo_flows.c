@@ -59,7 +59,7 @@ port_init(uint16_t port_id)
  * @user_ctx [out]: user context
  */
 static void
-check_for_valid_entry(struct doca_flow_pipe_entry *entry, /*uint16_t pipe_queue,*/
+check_for_valid_entry(struct doca_flow_pipe_entry *entry, uint16_t pipe_queue,
 		      enum doca_flow_entry_status status, enum doca_flow_entry_op op, void *user_ctx)
 {
 	(void)entry;
@@ -175,8 +175,7 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 			.type = DOCA_FLOW_PIPE_BASIC,
 			.nb_actions = sizeof(actions_ptr_arr) / sizeof(actions_ptr_arr[0]),
 		},
-		//.port = doca_flow_port_switch_get(port), // DOCA 2.2+
-		.port = doca_flow_port_switch_get(),
+		.port = doca_flow_port_switch_get(port),
 		.match = &match,
 		.monitor = &mon,
 		.actions = actions_ptr_arr,
@@ -499,7 +498,8 @@ create_root_pipe(struct doca_flow_port *port,
         .next_pipe = decap_pipe,
     };
     res = doca_flow_pipe_control_add_entry(
-        0, priority_vf_to_uplink, pipe, &match_uplink, &match_mask, NULL, NULL, NULL, &fwd_uplink, &entry);
+        0, priority_vf_to_uplink, pipe, &match_uplink, &match_mask, NULL, NULL, NULL, NULL, &fwd_uplink, NULL,
+		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_get_error_name(res));
@@ -510,7 +510,8 @@ create_root_pipe(struct doca_flow_port *port,
         .next_pipe = encap_pipe,
     };
     res = doca_flow_pipe_control_add_entry(
-        0, priority_uplink_to_vf, pipe, NULL, NULL, NULL, NULL, NULL, &fwd_vf, &entry);
+        0, priority_uplink_to_vf, pipe, NULL, NULL, NULL, NULL, NULL, NULL, &fwd_vf, NULL,
+		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_get_error_name(res));
@@ -527,7 +528,8 @@ create_root_pipe(struct doca_flow_port *port,
 		.next_pipe = arp_pipe,
 	};
 	res = doca_flow_pipe_control_add_entry(
-        0, priority_arp, pipe, &match_icmp, NULL, NULL, NULL, NULL, &fwd_to_arp_pipe, &entry);
+        0, priority_arp, pipe, &match_icmp, NULL, NULL, NULL, NULL, NULL, &fwd_to_arp_pipe, NULL,
+		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_get_error_name(res));

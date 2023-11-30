@@ -40,9 +40,8 @@ app_srcs = [
 	'geneve_demo_pkt_rss.c',
 	'geneve_demo_program_args.c',
 	'geneve_demo_session_hashtable.c',
-	# DOCA-provided utilities:
+	# DOCA-SDK-provided utilities:
 	common_dir_path + '/dpdk_utils.c',
-	common_dir_path + '/offload_rules.c',
 	common_dir_path + '/utils.c',
 ]
 

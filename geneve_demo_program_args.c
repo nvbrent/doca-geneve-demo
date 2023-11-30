@@ -83,7 +83,7 @@ geneve_demo_register_argp_params(void)
 	struct doca_argp_param * dmac_param = NULL;
 	int ret = doca_argp_param_create(&dmac_param);
 	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_get_error_string(ret));
+		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_error_get_descr(ret));
 	doca_argp_param_set_short_name(dmac_param, "d");
 	doca_argp_param_set_long_name(dmac_param, "dmac");
 	doca_argp_param_set_description(dmac_param, "Sets the destination MAC addr");
@@ -91,13 +91,13 @@ geneve_demo_register_argp_params(void)
 	doca_argp_param_set_type(dmac_param, DOCA_ARGP_TYPE_STRING);
 	ret = doca_argp_register_param(dmac_param);
 	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to register program param: %s", doca_get_error_string(ret));
+		DOCA_LOG_ERR("Failed to register program param: %s", doca_error_get_descr(ret));
 	
 	// TODO: virtual DMAC needs to be configured per-VF
 	struct doca_argp_param * virt_dmac_param = NULL;
 	ret = doca_argp_param_create(&virt_dmac_param);
 	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_get_error_string(ret));
+		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_error_get_descr(ret));
 	doca_argp_param_set_short_name(virt_dmac_param, "v");
 	doca_argp_param_set_long_name(virt_dmac_param, "virt-dmac");
 	doca_argp_param_set_description(virt_dmac_param, "Sets the virtual destination MAC addr");
@@ -105,12 +105,12 @@ geneve_demo_register_argp_params(void)
 	doca_argp_param_set_type(virt_dmac_param, DOCA_ARGP_TYPE_STRING);
 	ret = doca_argp_register_param(virt_dmac_param);
 	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to register program param: %s", doca_get_error_string(ret));
+		DOCA_LOG_ERR("Failed to register program param: %s", doca_error_get_descr(ret));
 	
 	struct doca_argp_param * outer_src_ip_param = NULL;
 	ret = doca_argp_param_create(&outer_src_ip_param);
 	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_get_error_string(ret));
+		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_error_get_descr(ret));
 	doca_argp_param_set_short_name(outer_src_ip_param, "s");
 	doca_argp_param_set_long_name(outer_src_ip_param, "src-ip");
 	doca_argp_param_set_description(outer_src_ip_param, "Sets the src ipv6 addr");
@@ -118,12 +118,12 @@ geneve_demo_register_argp_params(void)
 	doca_argp_param_set_type(outer_src_ip_param, DOCA_ARGP_TYPE_STRING);
 	ret = doca_argp_register_param(outer_src_ip_param);
 	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to register program param: %s", doca_get_error_string(ret));
+		DOCA_LOG_ERR("Failed to register program param: %s", doca_error_get_descr(ret));
 
 	struct doca_argp_param * test_machine_instance_param = NULL;
 	ret = doca_argp_param_create(&test_machine_instance_param);
 	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_get_error_string(ret));
+		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_error_get_descr(ret));
 	doca_argp_param_set_short_name(test_machine_instance_param, "t");
 	doca_argp_param_set_long_name(test_machine_instance_param, "test");
 	doca_argp_param_set_description(test_machine_instance_param, "Sets the test machine instance for sample sessions");
@@ -131,5 +131,5 @@ geneve_demo_register_argp_params(void)
 	doca_argp_param_set_type(test_machine_instance_param, DOCA_ARGP_TYPE_INT);
 	ret = doca_argp_register_param(test_machine_instance_param);
 	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to register program param: %s", doca_get_error_string(ret));
+		DOCA_LOG_ERR("Failed to register program param: %s", doca_error_get_descr(ret));
 }

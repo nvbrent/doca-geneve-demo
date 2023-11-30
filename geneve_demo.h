@@ -15,7 +15,7 @@
 
 #include <inttypes.h>
 #include <rte_ether.h>
-#include <offload_rules.h>
+#include <dpdk_utils.h>
 
 #define KEY_LEN 256
 

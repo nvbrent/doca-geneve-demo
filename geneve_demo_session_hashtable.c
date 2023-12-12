@@ -36,7 +36,7 @@ add_session(struct rte_hash * ht, struct session_def *session)
 	int res = rte_hash_add_key_data(ht, &session->session_id, session);
 	if (res) {
 		DOCA_LOG_ERR("Failed to add session %ld to hash_table: %d (%s)",
-			session->session_id, res, doca_get_error_string(res));
+			session->session_id, res, doca_error_get_descr(res));
 	}
 	DOCA_LOG_DBG("Added session %ld", session->session_id);
 	return res;

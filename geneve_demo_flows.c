@@ -31,7 +31,7 @@ port_init(uint16_t port_id)
 	struct doca_flow_port * port = NULL;
 	doca_error_t res = doca_flow_port_start(&port_cfg, &port);
 	if (res != DOCA_SUCCESS) {
-		rte_exit(EXIT_FAILURE, "failed to initialize doca flow port: %d (%s)\n", res, doca_get_error_name(res));
+		rte_exit(EXIT_FAILURE, "failed to initialize doca flow port: %d (%s)\n", res, doca_error_get_descr(res));
 	}
 
 	struct rte_ether_addr mac_addr;
@@ -96,7 +96,7 @@ process_all_entries(
 		doca_error_t result = doca_flow_entries_process(
 			port, 0, timeout_usec, status->entries_in_queue);
 		if (result != DOCA_SUCCESS || status->failure) {
-			DOCA_LOG_ERR("Failed to process entries: %s", doca_get_error_string(result));
+			DOCA_LOG_ERR("Failed to process entries: %s", doca_error_get_descr(result));
 			return result;
 		}
 	} while (status->entries_in_queue > 0 && !force_quit);
@@ -116,7 +116,7 @@ flow_init(
 
 	doca_error_t res = doca_flow_init(&flow_cfg);
 	if (res != DOCA_SUCCESS) {
-		rte_exit(EXIT_FAILURE, "Failed to init DOCA Flow: %d (%s)\n", res, doca_get_error_name(res));
+		rte_exit(EXIT_FAILURE, "Failed to init DOCA Flow: %d (%s)\n", res, doca_error_get_descr(res));
 	}
 	DOCA_LOG_DBG("DOCA Flow init done");
 
@@ -131,14 +131,14 @@ struct doca_flow_pipe*
 create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 {
 	struct doca_flow_match match = {
-		.meta.port_meta = PORT_META_ID_ANY,
+		.parser_meta.port_meta = PORT_META_ID_ANY,
 		.outer = {
 			.l3_type = DOCA_FLOW_L3_TYPE_IP6,
 			.ip6.dst_ip = IP6_MASK_ALL,
 		},
 	};
 	struct doca_flow_monitor mon = {
-		.flags = DOCA_FLOW_MONITOR_COUNT,
+		.counter_type = DOCA_FLOW_RESOURCE_TYPE_NON_SHARED,
 	};
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
@@ -185,7 +185,7 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	doca_error_t res = doca_flow_pipe_create(&cfg, &fwd, NULL, &pipe);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
-			cfg.attr.name, res, doca_get_error_name(res));
+			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 	return pipe;
 }
@@ -200,7 +200,7 @@ create_encap_entry(
 {
 	struct entries_status entries_status = {};
 	struct doca_flow_match match = {
-		.meta.port_meta = session->vf_port_id,
+		.parser_meta.port_meta = session->vf_port_id,
 		.outer.l3_type = DOCA_FLOW_L3_TYPE_IP6,
 	};
 	memcpy(match.outer.ip6.dst_ip, session->virt_remote_ip, 16);
@@ -230,11 +230,11 @@ create_encap_entry(
 	memcpy(actions.encap.outer.eth.src_mac, session->outer_smac.addr_bytes, RTE_ETHER_ADDR_LEN);
 	memcpy(actions.encap.outer.eth.dst_mac, session->outer_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
 
-	if (doca_log_global_level_get() >= DOCA_LOG_LEVEL_INFO) {
+	if (doca_log_level_get_global_lower_limit() >= DOCA_LOG_LEVEL_INFO) {
 		char match_dst_ip[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET6, session->virt_remote_ip, match_dst_ip, INET6_ADDRSTRLEN);
 		DOCA_LOG_INFO("Encap-Pipe Match: Session-ID: %ld, VF %d, match-dst-ip: %s",
-			session->session_id, match.meta.port_meta, match_dst_ip);
+			session->session_id, match.parser_meta.port_meta, match_dst_ip);
 
 		char encap_smac[RTE_ETHER_ADDR_FMT_SIZE];
 		char encap_dmac[RTE_ETHER_ADDR_FMT_SIZE];
@@ -289,7 +289,7 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 		},
 	};
 	struct doca_flow_monitor mon = {
-		.flags = DOCA_FLOW_MONITOR_COUNT,
+		.counter_type = DOCA_FLOW_RESOURCE_TYPE_NON_SHARED,
 	};
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
@@ -319,7 +319,7 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	doca_error_t res = doca_flow_pipe_create(&cfg, &fwd, NULL, &pipe);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
-			cfg.attr.name, res, doca_get_error_name(res));
+			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 	return pipe;
 }
@@ -356,7 +356,7 @@ create_decap_entry(
 	struct rte_ether_addr* p_decap_src_mac = (struct rte_ether_addr*)actions.outer.eth.src_mac;
 	rte_eth_macaddr_get(session->vf_port_id, p_decap_src_mac);
 	
-	if (doca_log_global_level_get() >= DOCA_LOG_LEVEL_INFO) {
+	if (doca_log_level_get_global_lower_limit() >= DOCA_LOG_LEVEL_INFO) {
 		char outer_src_ip[INET6_ADDRSTRLEN];
 		char outer_dst_ip[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET6, session->outer_remote_ip, outer_src_ip, INET6_ADDRSTRLEN);
@@ -391,7 +391,7 @@ create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 {
 	struct entries_status entries_status = {};
 	struct doca_flow_match mask = {
-		.meta = {
+		.parser_meta = {
 			.port_meta = UINT32_MAX,
 		},
 		.outer = {
@@ -400,7 +400,7 @@ create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 		}
 	};
 	struct doca_flow_match match = {
-		.meta = {
+		.parser_meta = {
 			.port_meta = UINT32_MAX,
 		},
 		.outer = {
@@ -410,7 +410,7 @@ create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 	};
 
 	struct doca_flow_monitor mon = {
-		.flags = DOCA_FLOW_MONITOR_COUNT,
+		.counter_type = DOCA_FLOW_RESOURCE_TYPE_NON_SHARED,
 	};
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
@@ -431,11 +431,11 @@ create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 	doca_error_t res = doca_flow_pipe_create(&cfg, &fwd, NULL, &pipe);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
-			cfg.attr.name, res, doca_get_error_name(res));
+			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
 	struct doca_flow_pipe_entry *entry = NULL;
-	match.meta.port_meta = 0;
+	match.parser_meta.port_meta = 0;
 	
 	fwd.port_id = 1; // TODO: for now, just forward to the first VF
 
@@ -443,16 +443,16 @@ create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, &entries_status, &entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
-			cfg.attr.name, res, doca_get_error_name(res));
+			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
-	match.meta.port_meta = 1; // TODO: for now, just forward from the first VF
+	match.parser_meta.port_meta = 1; // TODO: for now, just forward from the first VF
 	fwd.port_id = 0;
 	++entries_status.entries_in_queue;
 	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, &entries_status, &entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
-			cfg.attr.name, res, doca_get_error_name(res));
+			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
 	process_all_entries(cfg.attr.name, port, &entries_status, ENTRY_TIMEOUT_USEC);
@@ -481,17 +481,17 @@ create_root_pipe(struct doca_flow_port *port,
 	doca_error_t res = doca_flow_pipe_create(&cfg, NULL, NULL, &pipe);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
-			cfg.attr.name, res, doca_get_error_name(res));
+			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
     struct doca_flow_pipe_entry *entry = NULL;
 
     struct doca_flow_match match_mask = {
-        .meta.port_meta = PORT_META_ID_ANY,
+        .parser_meta.port_meta = PORT_META_ID_ANY,
 		.tun.type = DOCA_FLOW_TUN_GENEVE,
     };
     struct doca_flow_match match_uplink = {
-        .meta.port_meta = 0,
+        .parser_meta.port_meta = 0,
     };
     struct doca_flow_fwd fwd_uplink = {
         .type = DOCA_FLOW_FWD_PIPE,
@@ -502,7 +502,7 @@ create_root_pipe(struct doca_flow_port *port,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
-			cfg.attr.name, res, doca_get_error_name(res));
+			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
     struct doca_flow_fwd fwd_vf = {
@@ -514,7 +514,7 @@ create_root_pipe(struct doca_flow_port *port,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
-			cfg.attr.name, res, doca_get_error_name(res));
+			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
 	struct doca_flow_match match_icmp = {
@@ -532,7 +532,7 @@ create_root_pipe(struct doca_flow_port *port,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
-			cfg.attr.name, res, doca_get_error_name(res));
+			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
 	// TODO: DHCP

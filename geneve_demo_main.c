@@ -62,8 +62,19 @@ main(int argc, char **argv)
 		.uplink_port_id = 0,
 	};
 
-	struct doca_logger_backend *stdout_logger = NULL;
-	doca_log_create_file_backend(stdout, &stdout_logger);
+	/* Register a logger backend */
+	struct doca_log_backend *sdk_log;
+	doca_error_t result = doca_log_backend_create_standard();
+	if (result != DOCA_SUCCESS)
+		exit(1);
+
+	/* Register a logger backend for internal SDK errors and warnings */
+	result = doca_log_backend_create_with_file_sdk(stderr, &sdk_log);
+	if (result != DOCA_SUCCESS)
+		exit(1);
+	result = doca_log_backend_set_sdk_level(sdk_log, DOCA_LOG_LEVEL_WARNING);
+	if (result != DOCA_SUCCESS)
+		exit(1);
 	
 	/* Parse cmdline/json arguments */
 	doca_argp_init("doca-geneve-demo", &config);
@@ -96,7 +107,7 @@ main(int argc, char **argv)
 	// doca_error_t res = doca_flow_parser_geneve_opt_create(ports[config.uplink_port_id], NULL, 0, &parser);
 	// if (res != DOCA_SUCCESS)
 	// 	rte_exit(EXIT_FAILURE, "Port %d: Failed to doca_flow_parser_geneve_opt_create(): %d (%s)\n",
-	// 		config.uplink_port_id, res, doca_get_error_name(res));
+	// 		config.uplink_port_id, res, doca_error_get_descr(res));
 
 	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(config.ports[config.uplink_port_id], &config);
 	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(config.ports[config.uplink_port_id], &config);

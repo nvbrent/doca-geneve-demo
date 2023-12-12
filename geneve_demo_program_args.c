@@ -30,7 +30,7 @@ geneve_demo_register_argp_params(void)
 	struct doca_argp_param * param = NULL;
 	int ret = doca_argp_param_create(&param);
 	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_get_error_string(ret));
+		DOCA_LOG_ERR("Failed to create ARGP param: %s", doca_error_get_descr(ret));
 	doca_argp_param_set_short_name(param, "c");
 	doca_argp_param_set_long_name(param, "config");
 	doca_argp_param_set_description(param, "Path to the vnet config file");
@@ -39,6 +39,6 @@ geneve_demo_register_argp_params(void)
 	doca_argp_param_set_type(param, DOCA_ARGP_TYPE_STRING);
 	ret = doca_argp_register_param(param);
 	if (ret != DOCA_SUCCESS)
-		DOCA_LOG_ERR("Failed to register program param: %s", doca_get_error_string(ret));
+		DOCA_LOG_ERR("Failed to register program param: %s", doca_error_get_descr(ret));
 	
 }

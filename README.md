@@ -75,7 +75,7 @@ ninja -C build
 
 Start the gateway app on the host
 ```
-build/doca-geneve-demo -a17:00.0,dv_flow_en=2,representor=vf[0-63] -c0x3
+build/doca-geneve-demo -a17:00.0,dv_flow_en=2,representor=vf[0-31] -c0x3
 (CTRL-C to exit)
 ```
 

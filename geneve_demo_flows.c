@@ -3,6 +3,7 @@
 #include <rte_ethdev.h>
 
 #include <geneve_demo_flows.h>
+#include <geneve_demo_vnet_conf.h>
 
 #ifndef BUILD_VNI
 // see samples/doca_flow/flow_common.h
@@ -77,6 +78,16 @@ check_for_valid_entry(struct doca_flow_pipe_entry *entry, uint16_t pipe_queue,
 	entry_status->entries_in_queue--;
 }
 
+static enum doca_flow_l3_type get_inner_l3_type(struct geneve_demo_config *config)
+{
+	return config->vnet_config->inner_addr_fam == AF_INET6 ? DOCA_FLOW_L3_TYPE_IP6 : DOCA_FLOW_L3_TYPE_IP4;
+}
+
+static enum doca_flow_l3_type get_outer_l3_type(struct geneve_demo_config *config)
+{
+	return config->vnet_config->outer_addr_fam == AF_INET6 ? DOCA_FLOW_L3_TYPE_IP6 : DOCA_FLOW_L3_TYPE_IP4;
+}
+
 /*
  * Process entries and check the returned status
  *
@@ -133,7 +144,7 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	struct doca_flow_match match = {
 		.parser_meta.port_meta = PORT_META_ID_ANY,
 		.outer = {
-			.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+			.l3_type = get_inner_l3_type(config),
 			.ip6.dst_ip = IP6_MASK_ALL,
 		},
 	};
@@ -152,7 +163,11 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 					.src_mac = ETH_MASK_ALL,
 					.dst_mac = ETH_MASK_ALL,
 				},
-				.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+				.l3_type = get_outer_l3_type(config),
+				.ip4 = {
+					.src_ip = UINT32_MAX,
+					.dst_ip = UINT32_MAX,
+				},
 				.ip6 = {
 					.src_ip = IP6_MASK_ALL,
 					.dst_ip = IP6_MASK_ALL,
@@ -169,16 +184,28 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	};
 	struct doca_flow_actions *actions_ptr_arr[] = { &actions };
 
+	struct doca_flow_action_desc encap_action_desc = {
+		.type = DOCA_FLOW_ACTION_DECAP_ENCAP,
+		.decap_encap.is_l2 = true,
+	};
+	struct doca_flow_action_descs encap_action_descs = {
+		.nb_action_desc = 1,
+		.desc_array = &encap_action_desc,
+	};
+	struct doca_flow_action_descs *action_descs_arr[] = { &encap_action_descs };
+
 	struct doca_flow_pipe_cfg cfg = {
 		.attr = {
 			.name = "GENEVE_ENCAP_PIPE",
 			.type = DOCA_FLOW_PIPE_BASIC,
 			.nb_actions = sizeof(actions_ptr_arr) / sizeof(actions_ptr_arr[0]),
+			.enable_strict_matching = true,
 		},
 		.port = doca_flow_port_switch_get(port),
 		.match = &match,
 		.monitor = &mon,
 		.actions = actions_ptr_arr,
+		.action_descs = action_descs_arr,
 	};
 
 	struct doca_flow_pipe *pipe = NULL;
@@ -201,9 +228,13 @@ create_encap_entry(
 	struct entries_status entries_status = {};
 	struct doca_flow_match match = {
 		.parser_meta.port_meta = session->vf_port_id,
-		.outer.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+		.outer.l3_type = get_inner_l3_type(config),
 	};
-	memcpy(match.outer.ip6.dst_ip, session->virt_remote_ip, 16);
+	if (config->vnet_config->inner_addr_fam==AF_INET6) {
+		memcpy(match.outer.ip6.dst_ip, session->virt_remote_ip.ipv6, 16);
+	} else {
+		match.outer.ip4.dst_ip = session->virt_remote_ip.ipv4;
+	}
 
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
@@ -214,7 +245,7 @@ create_encap_entry(
 		.encap = {
 			.outer = {
 				// .eth and .ip6 set below
-				.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+				.l3_type = get_outer_l3_type(config),
 			},
 			.tun = {
 				.type = DOCA_FLOW_TUN_GENEVE,
@@ -225,14 +256,19 @@ create_encap_entry(
 			},
 		},
 	};
-	memcpy(actions.encap.outer.ip6.src_ip, session->outer_local_ip, 16);
-	memcpy(actions.encap.outer.ip6.dst_ip, session->outer_remote_ip, 16);
+	if (config->vnet_config->outer_addr_fam==AF_INET6) {
+		memcpy(actions.encap.outer.ip6.src_ip, session->outer_local_ip.ipv6, 16);
+		memcpy(actions.encap.outer.ip6.dst_ip, session->outer_remote_ip.ipv6, 16);
+	} else {
+		actions.encap.outer.ip4.src_ip = session->outer_local_ip.ipv4;
+		actions.encap.outer.ip4.dst_ip = session->outer_remote_ip.ipv4;
+	}
 	memcpy(actions.encap.outer.eth.src_mac, session->outer_smac.addr_bytes, RTE_ETHER_ADDR_LEN);
 	memcpy(actions.encap.outer.eth.dst_mac, session->outer_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
 
 	if (doca_log_level_get_global_lower_limit() >= DOCA_LOG_LEVEL_INFO) {
 		char match_dst_ip[INET6_ADDRSTRLEN];
-		inet_ntop(AF_INET6, session->virt_remote_ip, match_dst_ip, INET6_ADDRSTRLEN);
+		inet_ntop(config->vnet_config->inner_addr_fam, &session->virt_remote_ip, match_dst_ip, INET6_ADDRSTRLEN);
 		DOCA_LOG_INFO("Encap-Pipe Match: Session-ID: %ld, VF %d, match-dst-ip: %s",
 			session->session_id, match.parser_meta.port_meta, match_dst_ip);
 
@@ -242,8 +278,8 @@ create_encap_entry(
 		char encap_dst_ip[INET6_ADDRSTRLEN];
 		rte_ether_format_addr(encap_smac, RTE_ETHER_ADDR_FMT_SIZE, &session->outer_smac);
 		rte_ether_format_addr(encap_dmac, RTE_ETHER_ADDR_FMT_SIZE, &session->outer_dmac);
-		inet_ntop(AF_INET6, session->outer_local_ip, encap_src_ip, INET6_ADDRSTRLEN);
-		inet_ntop(AF_INET6, session->outer_remote_ip, encap_dst_ip, INET6_ADDRSTRLEN);
+		inet_ntop(config->vnet_config->outer_addr_fam, &session->outer_local_ip, encap_src_ip, INET6_ADDRSTRLEN);
+		inet_ntop(config->vnet_config->outer_addr_fam, &session->outer_remote_ip, encap_dst_ip, INET6_ADDRSTRLEN);
 		DOCA_LOG_INFO("Encap-Pipe Action: src-mac: %s, dst-mac: %s", 
 			encap_smac, encap_dmac);
 		DOCA_LOG_INFO("Encap-Pipe Action: VNI: %d, src-ip: %s, dst-ip: %s", 
@@ -269,7 +305,10 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 {
 	struct doca_flow_match match = {
 		.outer = {
-			.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+			.l3_type = get_outer_l3_type(config),
+			.ip4 = {
+				.src_ip = UINT32_MAX,
+			},
 			.ip6 = {
 				.src_ip = IP6_MASK_ALL,
 			},
@@ -282,7 +321,10 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 			},
 		},
 		.inner = {
-			// .l3_type = DOCA_FLOW_L3_TYPE_IP6,
+			.l3_type = get_inner_l3_type(config),
+			.ip4 = {
+				.dst_ip = UINT32_MAX,
+			},
 			.ip6 = {
 				.dst_ip = IP6_MASK_ALL,
 			},
@@ -303,17 +345,29 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 		},
 	};
 	struct doca_flow_actions *actions_arr[] = { &decap_action };
+
+	struct doca_flow_action_desc decap_action_desc = {
+		.type = DOCA_FLOW_ACTION_DECAP_ENCAP,
+		.decap_encap.is_l2 = true,
+	};
+	struct doca_flow_action_descs decap_action_descs = {
+		.nb_action_desc = 1,
+		.desc_array = &decap_action_desc,
+	};
+	struct doca_flow_action_descs *action_descs_arr[] = { &decap_action_descs };
 	
 	struct doca_flow_pipe_cfg cfg = {
 		.attr = {
 			.name = "GENEVE_DECAP_PIPE",
 			.type = DOCA_FLOW_PIPE_BASIC,
 			.nb_actions = sizeof(actions_arr) / sizeof(actions_arr[0]),
+			.enable_strict_matching = true,
 		},
 		.port = port,
 		.match = &match,
 		.monitor = &mon,
 		.actions = actions_arr,
+		.action_descs = action_descs_arr,
 	};
 	struct doca_flow_pipe *pipe = NULL;
 	doca_error_t res = doca_flow_pipe_create(&cfg, &fwd, NULL, &pipe);
@@ -333,17 +387,25 @@ create_decap_entry(
 {
 	struct entries_status entries_status = {};
 	struct doca_flow_match match = {
-		.outer.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+		.outer.l3_type = get_outer_l3_type(config),
 		.tun = {
 			.type = DOCA_FLOW_TUN_GENEVE,
 			.geneve = {
 				.vni = BUILD_VNI(session->vnet_id_ingress),
 			},
 		},
-		.inner.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+		.inner.l3_type = get_inner_l3_type(config),
 	};
-	memcpy(match.outer.ip6.src_ip, session->outer_remote_ip, 16);
-	memcpy(match.inner.ip6.dst_ip, session->virt_local_ip, 16);
+	if (config->vnet_config->outer_addr_fam==AF_INET6) {
+		memcpy(match.outer.ip6.src_ip, session->outer_remote_ip.ipv6, 16);
+	} else {
+		match.outer.ip4.src_ip = session->outer_remote_ip.ipv4;
+	}
+	if (config->vnet_config->inner_addr_fam==AF_INET6) {
+		memcpy(match.inner.ip6.dst_ip, session->virt_local_ip.ipv6, 16);
+	} else {
+		match.inner.ip4.dst_ip = session->virt_local_ip.ipv4;
+	}
 
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
@@ -359,8 +421,8 @@ create_decap_entry(
 	if (doca_log_level_get_global_lower_limit() >= DOCA_LOG_LEVEL_INFO) {
 		char outer_src_ip[INET6_ADDRSTRLEN];
 		char outer_dst_ip[INET6_ADDRSTRLEN];
-		inet_ntop(AF_INET6, session->outer_remote_ip, outer_src_ip, INET6_ADDRSTRLEN);
-		inet_ntop(AF_INET6, session->outer_local_ip, outer_dst_ip, INET6_ADDRSTRLEN);
+		inet_ntop(config->vnet_config->outer_addr_fam, &session->outer_remote_ip, outer_src_ip, INET6_ADDRSTRLEN);
+		inet_ntop(config->vnet_config->outer_addr_fam, &session->outer_local_ip, outer_dst_ip, INET6_ADDRSTRLEN);
 		DOCA_LOG_INFO("Decap-Pipe Match: Session-ID: %ld, VNI %d, match-src-ip: %s match-dst-ip: %s",
 			session->session_id, session->vnet_id_ingress, outer_src_ip, outer_dst_ip);
 
@@ -389,13 +451,16 @@ create_decap_entry(
 struct doca_flow_pipe*
 create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 {
+	int addr_fam = config->vnet_config->inner_addr_fam;
+
 	struct entries_status entries_status = {};
 	struct doca_flow_match mask = {
 		.parser_meta = {
 			.port_meta = UINT32_MAX,
 		},
 		.outer = {
-			.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+			.l3_type = addr_fam==AF_INET6 ? DOCA_FLOW_L3_TYPE_IP6 : DOCA_FLOW_L3_META_IPV4,
+			.ip4.next_proto = UINT8_MAX,
 			.ip6.next_proto = UINT8_MAX,
 		}
 	};
@@ -404,7 +469,8 @@ create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 			.port_meta = UINT32_MAX,
 		},
 		.outer = {
-			.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+			.l3_type = addr_fam==AF_INET6 ? DOCA_FLOW_L3_TYPE_IP6 : DOCA_FLOW_L3_META_IPV4,
+			.ip4.next_proto = DOCA_PROTO_ICMP,
 			.ip6.next_proto = DOCA_PROTO_ICMP6,
 		}
 	};
@@ -419,8 +485,9 @@ create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 	
 	struct doca_flow_pipe_cfg cfg = {
 		.attr = {
-			.name = "ARP_PIPE",
+			.name = "ARP_PIPE_IP",
 			.type = DOCA_FLOW_PIPE_BASIC,
+			.enable_strict_matching = true,
 		},
 		.port = port,
 		.match = &match,

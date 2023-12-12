@@ -22,7 +22,7 @@ struct vnic_t
     uint16_t vf_index;
     const char *name;
     struct rte_ether_addr mac_addr;
-    ipv6_addr_t ip;
+    union ip_addr ip;
     // The same VNET ID is applied to all outgoing flows on this interface
     uint32_t vnet_id_out;
 };
@@ -33,7 +33,7 @@ struct nic_t
 {
     const char *name;
     struct rte_ether_addr mac_addr;
-    ipv6_addr_t ip;
+    union ip_addr ip;
     uint16_t num_vnics;
     struct vnic_t *vnics;
 };
@@ -57,6 +57,8 @@ struct route_t
 // span the physical hosts.
 struct vnet_config_t
 {
+    int outer_addr_fam; // AF_INET or AF_INET6
+    int inner_addr_fam;
     uint16_t num_hosts;
     struct vnet_host_t *hosts;
     uint16_t num_routes;

@@ -1,20 +1,22 @@
 {
+    "outer-ip-ver": 6,
+    "inner-ip-ver": 4,
     "hosts": [
         {
             "name": "doca-vr-021",
             "nics": [ 
                 { 
                     "name": "enp23s0f0np0", 
-                    "mac": "b8:3f:d2:ba:66:1e",
+                    "mac": "94:6d:ae:47:a2:d2",
                     "ip": "99::11",
                     "pci": "17:00.0",
                     "vnics": [ 
                         { 
                             "index": 0, 
                             "name": "enp23s0f0v0", 
-                            "mac": "a6:f6:36:d1:4e:bd",
+                            "mac": "76:85:12:3f:b0:a7",
                             "pci": "17:00.3", 
-                            "ip": "11::cafe",
+                            "ip": "20.1.1.11",
                             "vnid-out": 101
                         }
                     ]
@@ -35,7 +37,49 @@
                             "name": "enp23s0f0v0", 
                             "mac": "9e:6d:d0:d7:ae:01",
                             "pci": "17:00.3", 
-                            "ip": "11::beef",
+                            "ip": "20.1.1.22",
+                            "vnid-out": 102
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dummy-023",
+            "nics": [ 
+                { 
+                    "name": "enp23s0f0np0", 
+                    "mac": "00:00:00:00:ff:23",
+                    "ip": "99::33",
+                    "pci": "17:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "enp23s0f0v0", 
+                            "mac": "00:00:00:00:ee:23",
+                            "pci": "17:00.3", 
+                            "ip": "20.1.1.23",
+                            "vnid-out": 102
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dummy-024",
+            "nics": [ 
+                { 
+                    "name": "enp23s0f0np0", 
+                    "mac": "00:00:00:00:ff:24",
+                    "ip": "99::44",
+                    "pci": "17:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "enp23s0f0v0", 
+                            "mac": "00:00:00:00:ee:24",
+                            "pci": "17:00.3", 
+                            "ip": "20.1.1.24",
                             "vnid-out": 102
                         }
                     ]
@@ -47,6 +91,14 @@
         [
             { "host": "doca-vr-021", "vnic": "enp23s0f0v0" }, 
             { "host": "doca-vr-022", "vnic": "enp23s0f0v0" },
+        ],
+        [
+            { "host": "doca-vr-021", "vnic": "enp23s0f0v0" }, 
+            { "host": "dummy-023", "vnic": "enp23s0f0v0" },
+        ],
+        [
+            { "host": "doca-vr-021", "vnic": "enp23s0f0v0" }, 
+            { "host": "dummy-024", "vnic": "enp23s0f0v0" },
         ]
     ]
 }

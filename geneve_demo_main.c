@@ -51,6 +51,7 @@ static void install_signal_handler(void)
 int
 main(int argc, char **argv)
 {
+	struct vnet_config_t vnet_config = {};
 	struct geneve_demo_config config = {
 		.dpdk_config = {
 			.port_config = {
@@ -60,6 +61,7 @@ main(int argc, char **argv)
 			},
 		},
 		.uplink_port_id = 0,
+		.vnet_config = &vnet_config,
 	};
 
 	/* Register a logger backend */
@@ -80,15 +82,21 @@ main(int argc, char **argv)
 	doca_argp_init("doca-geneve-demo", &config);
 	doca_argp_set_dpdk_program(dpdk_init);
 	geneve_demo_register_argp_params();
-	doca_argp_start(argc, argv);
+	result = doca_argp_start(argc, argv);
+	if (result != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to parse args\n");
+	}
 
-	struct vnet_config_t vnet_config = {};
 	result = load_vnet_config(config.vnet_config_file, &vnet_config);
 	if (result != DOCA_SUCCESS) {
-		rte_exit(EXIT_FAILURE, "Failed to load config file");
+		rte_exit(EXIT_FAILURE, "Failed to load config file\n");
 	}
 
 	config.dpdk_config.port_config.nb_ports = rte_eth_dev_count_avail(); // attach to the PF and all the available VFs
+
+	if (config.dpdk_config.port_config.nb_ports < 2) {
+		rte_exit(EXIT_FAILURE, "Num ports probed: %d, min: %d\n", config.dpdk_config.port_config.nb_ports, 2);
+	}
 
 	install_signal_handler();
 
@@ -114,7 +122,7 @@ main(int argc, char **argv)
 	struct doca_flow_pipe *arp_pipe = create_arp_pipe(config.ports[config.uplink_port_id], &config);
 	create_root_pipe(config.ports[config.uplink_port_id], decap_pipe, encap_pipe, arp_pipe, &config);
 
-	load_vnet_conf_sessions(&config, &vnet_config, session_ht, encap_pipe, decap_pipe);
+	load_vnet_conf_sessions(&config, session_ht, encap_pipe, decap_pipe);
 	
 #if 0
 	uint32_t lcore_id;

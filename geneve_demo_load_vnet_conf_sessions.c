@@ -12,7 +12,6 @@ DOCA_LOG_REGISTER(geneve_demo_vnet_conf_loader);
 struct vnet_flow_builder_config
 {
     struct geneve_demo_config *demo_config;
-    const struct vnet_config_t *vnet_config;
     struct rte_hash *session_ht;
 	struct doca_flow_pipe *encap_pipe; 
 	struct doca_flow_pipe *decap_pipe;
@@ -98,7 +97,11 @@ static bool build_session(
     const char *remote_vnic_name)
 {
     const struct vnet_host_t *local_host = builder_config->self;
-    const struct vnet_host_t *remote_host = find_phys_host_by_name(remote_host_name, builder_config->vnet_config);
+    const struct vnet_host_t *remote_host = find_phys_host_by_name(remote_host_name, builder_config->demo_config->vnet_config);
+    if (!remote_host) {
+        DOCA_LOG_ERR("Host %s: remote host not found", remote_host_name);
+        return false;
+    }
     const struct nic_t *local_nic = NULL;
     const struct vnic_t *local_vnic = NULL;
     const struct nic_t *remote_nic = NULL;
@@ -124,13 +127,23 @@ static bool build_session(
     session->outer_smac = local_nic->mac_addr;
     session->outer_dmac = remote_nic->mac_addr;
     
-    memcpy(session->outer_local_ip, local_nic->ip, sizeof(ipv6_addr_t));
-    memcpy(session->outer_remote_ip, remote_nic->ip, sizeof(ipv6_addr_t));
+    if (builder_config->demo_config->vnet_config->outer_addr_fam == AF_INET) {
+        session->outer_local_ip.ipv4 = local_nic->ip.ipv4;
+        session->outer_remote_ip.ipv4 = remote_nic->ip.ipv4;
+    } else {
+        memcpy(session->outer_local_ip.ipv6, local_nic->ip.ipv6, sizeof(ipv6_addr_t));
+        memcpy(session->outer_remote_ip.ipv6, remote_nic->ip.ipv6, sizeof(ipv6_addr_t));
+    }
 
     session->decap_dmac = local_vnic->mac_addr;
 
-    memcpy(session->virt_local_ip, local_vnic->ip, sizeof(ipv6_addr_t));
-    memcpy(session->virt_remote_ip, remote_vnic->ip, sizeof(ipv6_addr_t));
+    if (builder_config->demo_config->vnet_config->inner_addr_fam == AF_INET) {
+        session->virt_local_ip.ipv4 = local_vnic->ip.ipv4;
+        session->virt_remote_ip.ipv4 = local_vnic->ip.ipv4;
+    } else {
+        memcpy(session->virt_local_ip.ipv6, local_vnic->ip.ipv6, sizeof(ipv6_addr_t));
+        memcpy(session->virt_remote_ip.ipv6, remote_vnic->ip.ipv6, sizeof(ipv6_addr_t));
+    }
 
     uint32_t pipe_queue = 0;
     session->encap_entry = create_encap_entry(
@@ -151,24 +164,22 @@ static bool build_session(
 
 int load_vnet_conf_sessions(
     struct geneve_demo_config *demo_config,
-    const struct vnet_config_t *vnet_config,
     struct rte_hash *session_ht,
 	struct doca_flow_pipe *encap_pipe, 
 	struct doca_flow_pipe *decap_pipe)
 {
     struct vnet_flow_builder_config builder_config = {
         .demo_config = demo_config,
-        .vnet_config = vnet_config,
         .session_ht = session_ht,
         .encap_pipe = encap_pipe,
         .decap_pipe = decap_pipe,
         .next_session_id = 4000,
     };
-    builder_config.self = find_self(demo_config->uplink_port_id, vnet_config);
+    builder_config.self = find_self(demo_config->uplink_port_id, demo_config->vnet_config);
 
     uint32_t total_sessions = 0;
-    for (uint16_t i=0; i<vnet_config->num_routes; i++) {
-        struct route_t *route = &vnet_config->routes[i];
+    for (uint16_t i=0; i<demo_config->vnet_config->num_routes; i++) {
+        struct route_t *route = &demo_config->vnet_config->routes[i];
         // check each end of the route
         for (int idx_local=0; idx_local<2; idx_local++) {
             const char *local_hostname = route->hostname[idx_local];

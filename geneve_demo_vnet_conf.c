@@ -8,6 +8,7 @@ DOCA_LOG_REGISTER(vnet_conf);
 #define CALLOC_ARRAY(array_var, array_length) \
     array_var = calloc(array_length, sizeof(array_var[0]))
 
+#if 0
 static void load_hard_coded_config_values(struct vnet_config_t *config)
 {
     struct vnet_host_t *host = NULL;
@@ -27,7 +28,7 @@ static void load_hard_coded_config_values(struct vnet_config_t *config)
 
     pf->name = "enp23s0f0np0";
     rte_ether_unformat_addr("b8:3f:d2:ba:65:9a", &pf->mac_addr);
-    inet_pton(AF_INET6, "99::11", &pf->ip);
+    inet_pton(config->outer_addr_fam, "99::11", &pf->ip);
     pf->num_vnics = 1;
     CALLOC_ARRAY(pf->vnics, pf->num_vnics);
     vf = &pf->vnics[0];
@@ -35,7 +36,7 @@ static void load_hard_coded_config_values(struct vnet_config_t *config)
     vf->vf_index = 0;
     vf->name = "enp23s0f0v0";
     rte_ether_unformat_addr("22:d6:04:82:05:ac", &vf->mac_addr);
-    inet_pton(AF_INET6, "11::cafe", &vf->ip);
+    inet_pton(config->inner_addr_fam, "11::cafe", &vf->ip);
     vf->vnet_id_out = 101;
 
     host = &config->hosts[1];
@@ -47,7 +48,7 @@ static void load_hard_coded_config_values(struct vnet_config_t *config)
 
     pf->name = "enp23s0f0np0";
     rte_ether_unformat_addr("b8:3f:d2:ba:65:ee", &pf->mac_addr);
-    inet_pton(AF_INET6, "99::22", &pf->ip);
+    inet_pton(config->outer_addr_fam, "99::22", &pf->ip);
     pf->num_vnics = 1;
     CALLOC_ARRAY(pf->vnics, pf->num_vnics);
     vf = &pf->vnics[0];
@@ -55,7 +56,7 @@ static void load_hard_coded_config_values(struct vnet_config_t *config)
     vf->vf_index = 0;
     vf->name = "enp23s0f0v0";
     rte_ether_unformat_addr("c2:b8:0c:93:83:86", &vf->mac_addr);
-    inet_pton(AF_INET6, "11::beef", &vf->ip);
+    inet_pton(config->inner_addr_fam, "11::beef", &vf->ip);
     vf->vnet_id_out = 102;
 
     config->num_routes = 1;
@@ -67,8 +68,9 @@ static void load_hard_coded_config_values(struct vnet_config_t *config)
     route->hostname[1] = "doca-vr-008";
     route->vnic_name[1] = "enp23s0f0v0";
 }
+#endif
 
-static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic)
+static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic, int addr_fam)
 {
     // parse index, name, mac, ip, pci, vnet_id
     struct json_object *index_obj, *name_obj, *mac_obj, *pci_obj, *ip_obj, *vni_obj;
@@ -104,7 +106,7 @@ static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic
         return DOCA_ERROR_INVALID_VALUE;
     }
     const char *ip_str = json_object_get_string(ip_obj);
-    if (inet_pton(AF_INET6, ip_str, &vnic->ip) != 1) { // 1 if successful
+    if (inet_pton(addr_fam, ip_str, &vnic->ip) != 1) { // 1 if successful
         DOCA_LOG_ERR("NIC: bad IPv6 addr: %s", ip_str);
         return DOCA_ERROR_INVALID_VALUE;
     }
@@ -121,7 +123,7 @@ static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic
     return DOCA_SUCCESS;
 }
 
-static doca_error_t parse_nic(struct json_object *nic_obj, struct nic_t *nic)
+static doca_error_t parse_nic(struct json_object *nic_obj, struct nic_t *nic, int addr_fam_outer, int addr_fam_inner)
 {
     // parse name, mac, ip, pci
     struct json_object *name_obj, *mac_obj, *pci_obj, *ip_obj, *vnics_obj;
@@ -150,7 +152,7 @@ static doca_error_t parse_nic(struct json_object *nic_obj, struct nic_t *nic)
         return DOCA_ERROR_INVALID_VALUE;
     }
     const char *ip_str = json_object_get_string(ip_obj);
-    if (inet_pton(AF_INET6, ip_str, &nic->ip) != 1) { // 1 if successful
+    if (inet_pton(addr_fam_outer, ip_str, &nic->ip) != 1) { // 1 if successful
         DOCA_LOG_ERR("NIC: bad IPv6 addr: %s", ip_str);
         return DOCA_ERROR_INVALID_VALUE;
     }
@@ -170,7 +172,7 @@ static doca_error_t parse_nic(struct json_object *nic_obj, struct nic_t *nic)
     CALLOC_ARRAY(nic->vnics, nic->num_vnics);
     for (size_t i=0; i<nic->num_vnics; i++) {
         json_object *vnic_obj = json_object_array_get_idx(vnics_obj, i);
-        doca_error_t result = parse_vnic(vnic_obj, &nic->vnics[i]);
+        doca_error_t result = parse_vnic(vnic_obj, &nic->vnics[i], addr_fam_inner);
         if (result != DOCA_SUCCESS) {
             return result;
         }
@@ -178,7 +180,7 @@ static doca_error_t parse_nic(struct json_object *nic_obj, struct nic_t *nic)
     return DOCA_SUCCESS;
 }
 
-static doca_error_t parse_host(struct json_object *host_obj, struct vnet_host_t *host)
+static doca_error_t parse_host(struct json_object *host_obj, struct vnet_host_t *host, int addr_fam_outer, int addr_fam_inner)
 {   
     struct json_object *hostname_obj;
     if (!json_object_object_get_ex(host_obj, "name", &hostname_obj)) {
@@ -204,7 +206,7 @@ static doca_error_t parse_host(struct json_object *host_obj, struct vnet_host_t 
 
     for (size_t i=0; i<host->num_nics; i++) {
         struct json_object *nic_obj = json_object_array_get_idx(nics_obj, i);
-        doca_error_t result = parse_nic(nic_obj, &host->nics[i]);
+        doca_error_t result = parse_nic(nic_obj, &host->nics[i], addr_fam_outer, addr_fam_inner);
         if (result != DOCA_SUCCESS) {
             return result;
         }
@@ -237,6 +239,14 @@ static doca_error_t parse_route(struct json_object *route_obj, struct route_t *r
     return DOCA_SUCCESS;
 }
 
+static int json_obj_to_addr_fam(struct json_object *ipver_obj)
+{
+    if (json_object_is_type(ipver_obj, json_type_int)) {
+        return json_object_get_int(ipver_obj) == 4 ? AF_INET : AF_INET6;
+    } else {
+        return strchr(json_object_get_string(ipver_obj), '4') != NULL ? AF_INET : AF_INET6;
+    }
+}
 
 doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t *config)
 {
@@ -260,6 +270,23 @@ doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t
 
     do // once
     {
+        struct json_object *ipver_obj = NULL;
+        if (!json_object_object_get_ex(json_obj, "outer-ip-ver", &ipver_obj)) {
+            DOCA_LOG_ERR("Missing \"outer_ip_ver\" parameter");
+            break;
+        }
+        config->outer_addr_fam = json_obj_to_addr_fam(ipver_obj);
+
+        if (!json_object_object_get_ex(json_obj, "inner-ip-ver", &ipver_obj)) {
+            DOCA_LOG_ERR("Missing \"inner_ip_ver\" parameter");
+            break;
+        }
+        config->inner_addr_fam = json_obj_to_addr_fam(ipver_obj);
+
+        DOCA_LOG_DBG("Configured outer IPv%d / inner IPv%d", 
+            config->outer_addr_fam==AF_INET ? 4 : 6, 
+            config->inner_addr_fam==AF_INET ? 4 : 6);
+
         struct json_object *hosts_obj = NULL;
         if (!json_object_object_get_ex(json_obj, "hosts", &hosts_obj)) {
             DOCA_LOG_ERR("Missing \"hosts\" parameter");
@@ -291,7 +318,7 @@ doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t
 
         for (size_t i=0; i<config->num_hosts; i++) {
             struct json_object *host_obj = json_object_array_get_idx(hosts_obj, i);
-            result = parse_host(host_obj, &config->hosts[i]);
+            result = parse_host(host_obj, &config->hosts[i], config->outer_addr_fam, config->inner_addr_fam);
             if (result != DOCA_SUCCESS) {
                 break;
             }

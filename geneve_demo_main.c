@@ -83,7 +83,7 @@ main(int argc, char **argv)
 	doca_argp_start(argc, argv);
 
 	struct vnet_config_t vnet_config = {};
-	doca_error_t result = load_vnet_config(config.vnet_config_file, &vnet_config);
+	result = load_vnet_config(config.vnet_config_file, &vnet_config);
 	if (result != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to load config file");
 	}

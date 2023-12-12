@@ -16,6 +16,7 @@
 #include <inttypes.h>
 #include <rte_ether.h>
 #include <dpdk_utils.h>
+#include <doca_flow.h>
 
 #define KEY_LEN 256
 

@@ -445,41 +445,29 @@ create_decap_entry(
 	return entry;
 }
 
-struct doca_flow_match arp_ping_v4_mask = {
-	.parser_meta = {
-		.port_meta = UINT32_MAX,
-	},
-	.outer = {
-		.eth = {
-			.type = UINT16_MAX,
-		},
-	},
-};
-
-struct doca_flow_match arp_ping_v6_mask = {
-	.parser_meta = {
-		.outer_l3_type = DOCA_FLOW_L3_META_IPV6,
-		.port_meta = UINT32_MAX,
-	},
-	.outer = {
-		.l3_type = DOCA_FLOW_L3_TYPE_IP6,
-		.ip6 = {
-			.next_proto = DOCA_PROTO_ICMP6,
-		},
-	},
-};
-
 void forward_arp_ping(
 	const char *entry_name,
 	struct doca_flow_pipe *pipe,
 	int addr_fam,
-	int ether_type,
+	bool is_arp, // else ping
 	struct doca_flow_pipe_entry **ingress_entry,
 	struct doca_flow_pipe_entry **egress_entry)
 {
-	struct doca_flow_match mask = (addr_fam==AF_INET6) ? arp_ping_v6_mask : arp_ping_v4_mask;
+	struct doca_flow_match mask = { .parser_meta.port_meta = UINT32_MAX };
 	struct doca_flow_match match = mask;
-	if (addr_fam==AF_INET) match.outer.eth.type = ether_type;
+	if (addr_fam==AF_INET) {
+		if (is_arp) {
+			match.outer.eth.type = RTE_BE16(RTE_ETHER_TYPE_ARP);
+		} else {
+			mask.parser_meta.outer_l3_type = DOCA_FLOW_L3_META_IPV4;
+			mask.outer.l3_type = DOCA_FLOW_L3_TYPE_IP4;
+			mask.outer.l4_type_ext = DOCA_FLOW_L4_TYPE_EXT_ICMP;
+		}
+	} else {
+		mask.parser_meta.outer_l3_type = DOCA_FLOW_L3_META_IPV6;
+		mask.outer.l3_type = DOCA_FLOW_L3_TYPE_IP6;
+		mask.outer.l4_type_ext = DOCA_FLOW_L4_TYPE_EXT_ICMP6;
+	}
 
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
@@ -564,9 +552,9 @@ create_root_pipe(struct doca_flow_port *port,
 	}
 
 	int inner_addr_fam = config->vnet_config->inner_addr_fam;
-	forward_arp_ping("ARP", pipe, inner_addr_fam, RTE_BE16(RTE_ETHER_TYPE_ARP), &config->arp_ingress_entry, &config->arp_egress_entry);
+	forward_arp_ping("ARP", pipe, inner_addr_fam, false, &config->arp_ingress_entry, &config->arp_egress_entry);
 	if (inner_addr_fam == AF_INET) {
-		forward_arp_ping("PING", pipe, inner_addr_fam, DOCA_PROTO_ICMP, &config->ping_ingress_entry, &config->ping_egress_entry);
+		forward_arp_ping("PING", pipe, inner_addr_fam, true, &config->ping_ingress_entry, &config->ping_egress_entry);
 	} else {
 		// IPv6 uses ICMP for both discovery and for ping
 		config->ping_ingress_entry = config->arp_ingress_entry;

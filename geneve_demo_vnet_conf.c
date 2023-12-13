@@ -283,7 +283,7 @@ doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t
         }
         config->inner_addr_fam = json_obj_to_addr_fam(ipver_obj);
 
-        DOCA_LOG_DBG("Configured outer IPv%d / inner IPv%d", 
+        DOCA_LOG_INFO("Configured outer IPv%d / inner IPv%d", 
             config->outer_addr_fam==AF_INET ? 4 : 6, 
             config->inner_addr_fam==AF_INET ? 4 : 6);
 

@@ -18,6 +18,10 @@ static const uint16_t priority_vf_to_uplink = 2;
 
 static const uint32_t ENTRY_TIMEOUT_USEC = 100;
 
+struct doca_flow_monitor monitor_count = {
+	.counter_type = DOCA_FLOW_RESOURCE_TYPE_NON_SHARED,
+};
+
 static struct doca_flow_port *
 port_init(uint16_t port_id)
 {
@@ -148,9 +152,6 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 			.ip6.dst_ip = IP6_MASK_ALL,
 		},
 	};
-	struct doca_flow_monitor mon = {
-		.counter_type = DOCA_FLOW_RESOURCE_TYPE_NON_SHARED,
-	};
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
 		.port_id = PORT_ID_ANY,
@@ -203,7 +204,7 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 		},
 		.port = doca_flow_port_switch_get(port),
 		.match = &match,
-		.monitor = &mon,
+		.monitor = &monitor_count,
 		.actions = actions_ptr_arr,
 		.action_descs = action_descs_arr,
 	};
@@ -330,9 +331,6 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 			},
 		},
 	};
-	struct doca_flow_monitor mon = {
-		.counter_type = DOCA_FLOW_RESOURCE_TYPE_NON_SHARED,
-	};
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
 		.port_id = PORT_ID_ANY,
@@ -365,7 +363,7 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 		},
 		.port = port,
 		.match = &match,
-		.monitor = &mon,
+		.monitor = &monitor_count,
 		.actions = actions_arr,
 		.action_descs = action_descs_arr,
 	};
@@ -447,91 +445,73 @@ create_decap_entry(
 	return entry;
 }
 
+struct doca_flow_match arp_ping_v4_mask = {
+	.parser_meta = {
+		.port_meta = UINT32_MAX,
+	},
+	.outer = {
+		.eth = {
+			.type = UINT16_MAX,
+		},
+	},
+};
 
-struct doca_flow_pipe*
-create_arp_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
+struct doca_flow_match arp_ping_v6_mask = {
+	.parser_meta = {
+		.outer_l3_type = DOCA_FLOW_L3_META_IPV6,
+		.port_meta = UINT32_MAX,
+	},
+	.outer = {
+		.l3_type = DOCA_FLOW_L3_TYPE_IP6,
+		.ip6 = {
+			.next_proto = DOCA_PROTO_ICMP6,
+		},
+	},
+};
+
+void forward_arp_ping(
+	const char *entry_name,
+	struct doca_flow_pipe *pipe,
+	int addr_fam,
+	int ether_type,
+	struct doca_flow_pipe_entry **ingress_entry,
+	struct doca_flow_pipe_entry **egress_entry)
 {
-	int addr_fam = config->vnet_config->inner_addr_fam;
+	struct doca_flow_match mask = (addr_fam==AF_INET6) ? arp_ping_v6_mask : arp_ping_v4_mask;
+	struct doca_flow_match match = mask;
+	if (addr_fam==AF_INET) match.outer.eth.type = ether_type;
 
-	struct entries_status entries_status = {};
-	struct doca_flow_match mask = {
-		.parser_meta = {
-			.port_meta = UINT32_MAX,
-		},
-		.outer = {
-			.l3_type = addr_fam==AF_INET6 ? DOCA_FLOW_L3_TYPE_IP6 : DOCA_FLOW_L3_META_IPV4,
-			.ip4.next_proto = UINT8_MAX,
-			.ip6.next_proto = UINT8_MAX,
-		}
-	};
-	struct doca_flow_match match = {
-		.parser_meta = {
-			.port_meta = UINT32_MAX,
-		},
-		.outer = {
-			.l3_type = addr_fam==AF_INET6 ? DOCA_FLOW_L3_TYPE_IP6 : DOCA_FLOW_L3_META_IPV4,
-			.ip4.next_proto = DOCA_PROTO_ICMP,
-			.ip6.next_proto = DOCA_PROTO_ICMP6,
-		}
-	};
-
-	struct doca_flow_monitor mon = {
-		.counter_type = DOCA_FLOW_RESOURCE_TYPE_NON_SHARED,
-	};
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
-		.port_id = PORT_ID_ANY,
 	};
-	
-	struct doca_flow_pipe_cfg cfg = {
-		.attr = {
-			.name = "ARP_PIPE_IP",
-			.type = DOCA_FLOW_PIPE_BASIC,
-			.enable_strict_matching = true,
-		},
-		.port = port,
-		.match = &match,
-		.match_mask = &mask,
-		.monitor = &mon,
-	};
-	struct doca_flow_pipe *pipe = NULL;
-	doca_error_t res = doca_flow_pipe_create(&cfg, &fwd, NULL, &pipe);
-	if (res != DOCA_SUCCESS) {
-		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
-			cfg.attr.name, res, doca_error_get_descr(res));
-	}
 
-	struct doca_flow_pipe_entry *entry = NULL;
 	match.parser_meta.port_meta = 0;
-	
-	fwd.port_id = 1; // TODO: for now, just forward to the first VF
+	fwd.port_id = 1;
 
-	++entries_status.entries_in_queue;
-	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, &entries_status, &entry);
+	doca_error_t res = doca_flow_pipe_control_add_entry(
+		0, priority_arp, pipe, &match, &mask, NULL, NULL, NULL, &monitor_count, &fwd, NULL,
+		ingress_entry);
 	if (res != DOCA_SUCCESS) {
-		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
-			cfg.attr.name, res, doca_error_get_descr(res));
+		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry Ingress-%s: %d (%s)\n",
+			entry_name, res, doca_error_get_descr(res));
 	}
 
-	match.parser_meta.port_meta = 1; // TODO: for now, just forward from the first VF
+	match.parser_meta.port_meta = 1;
 	fwd.port_id = 0;
-	++entries_status.entries_in_queue;
-	res = doca_flow_pipe_add_entry(0, pipe, &match, NULL, NULL, &fwd, 0, &entries_status, &entry);
-	if (res != DOCA_SUCCESS) {
-		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
-			cfg.attr.name, res, doca_error_get_descr(res));
-	}
 
-	process_all_entries(cfg.attr.name, port, &entries_status, ENTRY_TIMEOUT_USEC);
-	
-	return pipe;
+	res = doca_flow_pipe_control_add_entry(
+		0, priority_arp, pipe, &match, &mask, NULL, NULL, NULL, &monitor_count, &fwd, NULL,
+		egress_entry);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry Egress-%s: %d (%s)\n",
+			entry_name, res, doca_error_get_descr(res));
+	}
 }
 
 struct doca_flow_pipe*
 create_root_pipe(struct doca_flow_port *port,
     struct doca_flow_pipe *decap_pipe,
     struct doca_flow_pipe *encap_pipe,
-	struct doca_flow_pipe *arp_pipe,
     struct geneve_demo_config *config)
 {
 	struct doca_flow_pipe *pipe = NULL;
@@ -550,7 +530,6 @@ create_root_pipe(struct doca_flow_port *port,
 		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
 			cfg.attr.name, res, doca_error_get_descr(res));
 	}
-
     struct doca_flow_pipe_entry *entry = NULL;
 
     struct doca_flow_match match_mask = {
@@ -584,22 +563,14 @@ create_root_pipe(struct doca_flow_port *port,
 			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
-	struct doca_flow_match match_icmp = {
-		.outer = {
-			.l3_type = DOCA_FLOW_L3_TYPE_IP6,
-			.ip6.next_proto = DOCA_PROTO_ICMP6,
-		}
-	};
-	struct doca_flow_fwd fwd_to_arp_pipe = {
-		.type = DOCA_FLOW_FWD_PIPE,
-		.next_pipe = arp_pipe,
-	};
-	res = doca_flow_pipe_control_add_entry(
-        0, priority_arp, pipe, &match_icmp, NULL, NULL, NULL, NULL, NULL, &fwd_to_arp_pipe, NULL,
-		&entry);
-	if (res != DOCA_SUCCESS) {
-		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
-			cfg.attr.name, res, doca_error_get_descr(res));
+	int inner_addr_fam = config->vnet_config->inner_addr_fam;
+	forward_arp_ping("ARP", pipe, inner_addr_fam, RTE_BE16(RTE_ETHER_TYPE_ARP), &config->arp_ingress_entry, &config->arp_egress_entry);
+	if (inner_addr_fam == AF_INET) {
+		forward_arp_ping("PING", pipe, inner_addr_fam, DOCA_PROTO_ICMP, &config->ping_ingress_entry, &config->ping_egress_entry);
+	} else {
+		// IPv6 uses ICMP for both discovery and for ping
+		config->ping_ingress_entry = config->arp_ingress_entry;
+		config->ping_egress_entry = config->arp_egress_entry;
 	}
 
 	// TODO: DHCP

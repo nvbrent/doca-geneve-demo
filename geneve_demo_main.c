@@ -119,8 +119,7 @@ main(int argc, char **argv)
 
 	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(config.ports[config.uplink_port_id], &config);
 	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(config.ports[config.uplink_port_id], &config);
-	struct doca_flow_pipe *arp_pipe = create_arp_pipe(config.ports[config.uplink_port_id], &config);
-	create_root_pipe(config.ports[config.uplink_port_id], decap_pipe, encap_pipe, arp_pipe, &config);
+	create_root_pipe(config.ports[config.uplink_port_id], decap_pipe, encap_pipe, &config);
 
 	load_vnet_conf_sessions(&config, session_ht, encap_pipe, decap_pipe);
 	
@@ -139,19 +138,36 @@ main(int argc, char **argv)
 		struct session_def *session = NULL;
 		uint32_t session_itr = 0;
 		while (rte_hash_iterate(session_ht, (const void**)&session_id, (void**)&session, &session_itr) >= 0) {
+			doca_error_t res;
 			struct doca_flow_query flow_stats = {};
-			doca_error_t res = doca_flow_query_entry(session->encap_entry, &flow_stats);
-			if (res == DOCA_SUCCESS) {
-				DOCA_LOG_INFO("Session %ld encap: %ld hits", session->session_id, flow_stats.total_pkts);
-			} else {
-				DOCA_LOG_ERR("Session %ld encap: failed to query stats", session->session_id);
-			}
+			
+			res = doca_flow_query_entry(session->encap_entry, &flow_stats);
+			int64_t encap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+			
 			res = doca_flow_query_entry(session->decap_entry, &flow_stats);
-			if (res == DOCA_SUCCESS) {
-				DOCA_LOG_INFO("Session %ld decap: %ld hits", session->session_id, flow_stats.total_pkts);
-			} else {
-				DOCA_LOG_ERR("Session %ld decap: failed to query stats", session->session_id);
-			}
+			int64_t decap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+			
+			DOCA_LOG_INFO("Session %ld encap: %ld hits, decap: %ld hits", 
+				session->session_id, encap_hits, decap_hits);
+		}
+		{
+			doca_error_t res;
+			struct doca_flow_query flow_stats = {};
+			
+			res = doca_flow_query_entry(config.arp_ingress_entry, &flow_stats);
+			int64_t arp_ingress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+			
+			res = doca_flow_query_entry(config.arp_egress_entry, &flow_stats);
+			int64_t arp_egress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+			
+			res = doca_flow_query_entry(config.ping_ingress_entry, &flow_stats);
+			int64_t ping_ingress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+			
+			res = doca_flow_query_entry(config.ping_egress_entry, &flow_stats);
+			int64_t ping_egress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+			
+			DOCA_LOG_INFO("ARP ingress: %ld hits, egress: %ld hits; PING ingress: %ld hits, egress: %ld hits", 
+				arp_ingress_hits, arp_egress_hits, ping_ingress_hits, ping_egress_hits);
 		}
 	}
 #endif

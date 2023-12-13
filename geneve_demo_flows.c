@@ -454,16 +454,14 @@ void forward_arp_ping(
 	struct doca_flow_pipe_entry **egress_entry)
 {
 	struct doca_flow_match mask = { .parser_meta.port_meta = UINT32_MAX };
-	struct doca_flow_match match = mask;
+	struct doca_flow_match match = { };
 	if (addr_fam==AF_INET) {
 		if (is_arp) {
 			mask.outer.eth.type = UINT16_MAX;
 			match.outer.eth.type = RTE_BE16(RTE_ETHER_TYPE_ARP);
 		} else {
-			mask.parser_meta.outer_l3_type = DOCA_FLOW_L3_META_IPV4;
-			mask.parser_meta.outer_l4_type = DOCA_FLOW_L4_META_ICMP;
-			mask.outer.l3_type = DOCA_FLOW_L3_TYPE_IP4;
-			mask.outer.l4_type_ext = DOCA_FLOW_L4_TYPE_EXT_ICMP;
+			mask.outer.ip4.next_proto = UINT8_MAX;
+			match.outer.ip4.next_proto = IPPROTO_ICMP;
 		}
 	} else {
 		mask.parser_meta.outer_l3_type = DOCA_FLOW_L3_META_IPV6;

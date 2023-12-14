@@ -92,6 +92,16 @@ static enum doca_flow_l3_type get_outer_l3_type(struct geneve_demo_config *confi
 	return config->vnet_config->outer_addr_fam == AF_INET6 ? DOCA_FLOW_L3_TYPE_IP6 : DOCA_FLOW_L3_TYPE_IP4;
 }
 
+static enum doca_flow_l3_meta get_inner_l3_meta(struct geneve_demo_config *config)
+{
+	return config->vnet_config->inner_addr_fam == AF_INET6 ? DOCA_FLOW_L3_META_IPV6 : DOCA_FLOW_L3_META_IPV4;
+}
+
+static enum doca_flow_l3_meta get_outer_l3_meta(struct geneve_demo_config *config)
+{
+	return config->vnet_config->outer_addr_fam == AF_INET6 ? DOCA_FLOW_L3_META_IPV6 : DOCA_FLOW_L3_META_IPV4;
+}
+
 /*
  * Process entries and check the returned status
  *
@@ -146,9 +156,13 @@ struct doca_flow_pipe*
 create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 {
 	struct doca_flow_match match = {
-		.parser_meta.port_meta = PORT_META_ID_ANY,
+		.parser_meta = {
+			.port_meta = PORT_META_ID_ANY,
+			.outer_l3_type = get_inner_l3_meta(config),
+		},
 		.outer = {
 			.l3_type = get_inner_l3_type(config),
+			.ip4.dst_ip = UINT32_MAX,
 			.ip6.dst_ip = IP6_MASK_ALL,
 		},
 	};
@@ -229,7 +243,6 @@ create_encap_entry(
 	struct entries_status entries_status = {};
 	struct doca_flow_match match = {
 		.parser_meta.port_meta = session->vf_port_id,
-		.outer.l3_type = get_inner_l3_type(config),
 	};
 	if (config->vnet_config->inner_addr_fam==AF_INET6) {
 		memcpy(match.outer.ip6.dst_ip, session->virt_remote_ip.ipv6, 16);
@@ -305,6 +318,10 @@ struct doca_flow_pipe*
 create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
 {
 	struct doca_flow_match match = {
+		.parser_meta = {
+			.outer_l3_type = get_outer_l3_meta(config),
+			.inner_l3_type = get_inner_l3_meta(config),
+		},
 		.outer = {
 			.l3_type = get_outer_l3_type(config),
 			.ip4 = {
@@ -385,14 +402,12 @@ create_decap_entry(
 {
 	struct entries_status entries_status = {};
 	struct doca_flow_match match = {
-		.outer.l3_type = get_outer_l3_type(config),
 		.tun = {
 			.type = DOCA_FLOW_TUN_GENEVE,
 			.geneve = {
 				.vni = BUILD_VNI(session->vnet_id_ingress),
 			},
 		},
-		.inner.l3_type = get_inner_l3_type(config),
 	};
 	if (config->vnet_config->outer_addr_fam==AF_INET6) {
 		memcpy(match.outer.ip6.src_ip, session->outer_remote_ip.ipv6, 16);
@@ -459,14 +474,15 @@ void forward_arp_ping(
 		if (is_arp) {
 			mask.outer.eth.type = UINT16_MAX;
 			match.outer.eth.type = RTE_BE16(RTE_ETHER_TYPE_ARP);
-		} else {
-			mask.outer.ip4.next_proto = UINT8_MAX;
-			match.outer.ip4.next_proto = IPPROTO_ICMP;
+		} else { // is ping
+			mask.parser_meta.outer_l3_type = DOCA_FLOW_L3_META_IPV4;
+			mask.parser_meta.outer_l4_type = DOCA_FLOW_L4_META_ICMP;
+			match.parser_meta = mask.parser_meta;
 		}
 	} else {
 		mask.parser_meta.outer_l3_type = DOCA_FLOW_L3_META_IPV6;
-		mask.outer.l3_type = DOCA_FLOW_L3_TYPE_IP6;
-		mask.outer.l4_type_ext = DOCA_FLOW_L4_TYPE_EXT_ICMP6;
+		mask.parser_meta.outer_l4_type = DOCA_FLOW_L4_META_ICMP;
+		match.parser_meta = mask.parser_meta;
 	}
 
 	struct doca_flow_fwd fwd = {

@@ -102,6 +102,10 @@ static bool build_session(
         DOCA_LOG_ERR("Host %s: remote host not found", remote_host_name);
         return false;
     }
+
+    DOCA_LOG_INFO("Building session: local-host: %s, remote-host: %s, local-vnic: %s, remote-vnis: %s",
+        local_host->name, remote_host->name, local_vnic_name, remote_vnic_name);
+
     const struct nic_t *local_nic = NULL;
     const struct vnic_t *local_vnic = NULL;
     const struct nic_t *remote_nic = NULL;
@@ -139,7 +143,7 @@ static bool build_session(
 
     if (builder_config->demo_config->vnet_config->inner_addr_fam == AF_INET) {
         session->virt_local_ip.ipv4 = local_vnic->ip.ipv4;
-        session->virt_remote_ip.ipv4 = local_vnic->ip.ipv4;
+        session->virt_remote_ip.ipv4 = remote_vnic->ip.ipv4;
     } else {
         memcpy(session->virt_local_ip.ipv6, local_vnic->ip.ipv6, sizeof(ipv6_addr_t));
         memcpy(session->virt_remote_ip.ipv6, remote_vnic->ip.ipv6, sizeof(ipv6_addr_t));

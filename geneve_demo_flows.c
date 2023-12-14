@@ -283,7 +283,7 @@ create_encap_entry(
 	if (doca_log_level_get_global_lower_limit() >= DOCA_LOG_LEVEL_INFO) {
 		char match_dst_ip[INET6_ADDRSTRLEN];
 		inet_ntop(config->vnet_config->inner_addr_fam, &session->virt_remote_ip, match_dst_ip, INET6_ADDRSTRLEN);
-		DOCA_LOG_INFO("Encap-Pipe Match: Session-ID: %ld, VF %d, match-dst-ip: %s",
+		DOCA_LOG_INFO("Encap-Pipe Match: Session-ID: %ld, port %d, match-dst-ip: %s",
 			session->session_id, match.parser_meta.port_meta, match_dst_ip);
 
 		char encap_smac[RTE_ETHER_ADDR_FMT_SIZE];

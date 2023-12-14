@@ -87,18 +87,5 @@
             ]
         }
     ],
-    "routes": [
-        [
-            { "host": "doca-vr-021", "vnic": "enp23s0f0v0" }, 
-            { "host": "doca-vr-022", "vnic": "enp23s0f0v0" },
-        ],
-        [
-            { "host": "doca-vr-021", "vnic": "enp23s0f0v0" }, 
-            { "host": "dummy-023", "vnic": "enp23s0f0v0" },
-        ],
-        [
-            { "host": "doca-vr-021", "vnic": "enp23s0f0v0" }, 
-            { "host": "dummy-024", "vnic": "enp23s0f0v0" },
-        ]
-    ]
+    "route-all-to-all": true
 }

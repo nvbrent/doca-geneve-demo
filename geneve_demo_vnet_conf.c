@@ -248,6 +248,99 @@ static int json_obj_to_addr_fam(struct json_object *ipver_obj)
     }
 }
 
+static uint16_t count_vnics(const struct vnet_host_t *host)
+{
+    uint16_t vnics = 0;
+    for (int i=0; i < host->num_nics; i++) {
+        vnics += host->nics[i].num_vnics;
+    }
+    return vnics;
+}
+
+static uint16_t count_all_to_all_routes(const struct vnet_config_t *config)
+{
+    uint16_t routes = 0;
+    for (int host1=0; host1<config->num_hosts; host1++) {
+        struct vnet_host_t *p_host1 = &config->hosts[host1];
+
+        for (int host2=host1 + 1; host2<config->num_hosts; host2++) {
+            struct vnet_host_t *p_host2 = &config->hosts[host2];
+            routes += count_vnics(p_host1) * count_vnics(p_host2);
+        }
+    }
+    return routes;
+}
+
+static doca_error_t configure_all_to_all_routes(struct vnet_config_t *config)
+{
+    config->num_routes = count_all_to_all_routes(config);
+    CALLOC_ARRAY(config->routes, config->num_routes);
+
+    uint16_t idx_route = 0;
+
+    // For every combindation of hosts:
+    for (int host1=0; host1<config->num_hosts; host1++) {
+        struct vnet_host_t *p_host1 = &config->hosts[host1];
+
+        for (int host2=host1 + 1; host2<config->num_hosts; host2++) {
+            struct vnet_host_t *p_host2 = &config->hosts[host2];
+
+            // For each nic/vnic on host1:
+            for (int nic1=0; nic1<p_host1->num_nics; nic1++) {
+                struct nic_t *p_nic1 = &p_host1->nics[nic1];
+                for (int vnic1=0; vnic1<p_nic1->num_vnics; vnic1++) {
+                    // For each nic/vnic on host2:
+                    for (int nic2=0; nic2<p_host2->num_nics; nic2++) {
+                        struct nic_t *p_nic2 = &p_host2->nics[nic2];
+                        for (int vnic2=0; vnic2<p_nic2->num_vnics; vnic2++) {
+                            // Configure the route between host1.nic.vnic <-> host2.nic.vnic
+                            struct route_t *p_route = &config->routes[idx_route++];
+                            p_route->hostname[0] = p_host1->name;
+                            p_route->hostname[1] = p_host2->name;
+                            p_route->vnic_name[0] = p_nic1->vnics[vnic1].name;
+                            p_route->vnic_name[1] = p_nic2->vnics[vnic2].name;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (idx_route != config->num_routes) {
+        DOCA_LOG_ERR("Expected to configured %d routes; found %d", config->num_routes, idx_route);
+        return DOCA_ERROR_UNKNOWN;
+    }
+
+    return DOCA_SUCCESS;
+}
+
+static doca_error_t configure_routes(struct vnet_config_t *config, struct json_object *json_obj)
+{
+    struct json_object *routes_obj = NULL;
+    if (!json_object_object_get_ex(json_obj, "routes", &routes_obj)) {
+        DOCA_LOG_ERR("Missing \"routes\" parameter");
+        return DOCA_ERROR_INVALID_VALUE;
+    }
+
+    config->num_routes = json_object_array_length(routes_obj);
+    DOCA_LOG_DBG("Config: configuring %d routes", config->num_routes);
+    if (config->num_routes == 0) {
+        DOCA_LOG_ERR("Zero \"routes\" configured");
+        return DOCA_ERROR_INVALID_VALUE;
+    }
+
+    CALLOC_ARRAY(config->routes, config->num_routes);
+
+    for (size_t i=0; i<config->num_routes; i++) {
+        struct json_object *route_obj = json_object_array_get_idx(routes_obj, i);
+        doca_error_t result = parse_route(route_obj, &config->routes[i]);
+        if (result != DOCA_SUCCESS) {
+            return result;
+        }
+    }
+
+    return DOCA_SUCCESS;
+}
+
 doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t *config)
 {
     doca_error_t result = DOCA_ERROR_INVALID_VALUE;
@@ -300,21 +393,7 @@ doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t
             break;
         }
 
-        struct json_object *routes_obj = NULL;
-        if (!json_object_object_get_ex(json_obj, "routes", &routes_obj)) {
-            DOCA_LOG_ERR("Missing \"routes\" parameter");
-            break;
-        }
-
-        config->num_routes = json_object_array_length(routes_obj);
-        DOCA_LOG_DBG("Config: configuring %d routes", config->num_routes);
-        if (config->num_routes == 0) {
-            DOCA_LOG_ERR("Zero \"routes\" configured");
-            break;
-        }
-
         CALLOC_ARRAY(config->hosts, config->num_hosts);
-        CALLOC_ARRAY(config->routes, config->num_routes);
 
         for (size_t i=0; i<config->num_hosts; i++) {
             struct json_object *host_obj = json_object_array_get_idx(hosts_obj, i);
@@ -327,13 +406,17 @@ doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t
             break;
         }
 
-        for (size_t i=0; i<config->num_routes; i++) {
-            struct json_object *route_obj = json_object_array_get_idx(routes_obj, i);
-            result = parse_route(route_obj, &config->routes[i]);
-            if (result != DOCA_SUCCESS) {
-                break;
-            }
+        struct json_object *route_a2a = NULL;
+        if (json_object_object_get_ex(json_obj, "route-all-to-all", &route_a2a)) {
+            config->route_all_to_all = json_object_get_boolean(route_a2a);
         }
+
+        if (config->route_all_to_all) {
+            result = configure_all_to_all_routes(config);
+        } else {
+            result = configure_routes(config, json_obj);
+        } // if not all-to-all
+
         if (result != DOCA_SUCCESS) {
             break;
         }

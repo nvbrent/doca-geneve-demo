@@ -61,6 +61,7 @@ struct vnet_config_t
     int inner_addr_fam;
     uint16_t num_hosts;
     struct vnet_host_t *hosts;
+    bool route_all_to_all;
     uint16_t num_routes;
     struct route_t *routes;
 };

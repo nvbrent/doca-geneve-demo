@@ -13,8 +13,8 @@
 DOCA_LOG_REGISTER(GENEVE_FLOWS);
 
 static const uint16_t priority_arp = 1;
-static const uint16_t priority_uplink_to_vf = 3;
-static const uint16_t priority_vf_to_uplink = 2;
+static const uint16_t priority_uplink_to_vf = 2;
+static const uint16_t priority_vf_to_uplink = 3;
 
 static const uint32_t ENTRY_TIMEOUT_USEC = 100;
 
@@ -162,10 +162,13 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 		},
 		.outer = {
 			.l3_type = get_inner_l3_type(config),
-			.ip4.dst_ip = UINT32_MAX,
-			.ip6.dst_ip = IP6_MASK_ALL,
 		},
 	};
+	if (config->vnet_config->inner_addr_fam==AF_INET) {
+		match.outer.ip4.dst_ip = UINT32_MAX;
+	} else {
+		memset(match.outer.ip6.dst_ip, 0xff, sizeof(match.outer.ip6.dst_ip));
+	}
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
 		.port_id = PORT_ID_ANY,
@@ -179,14 +182,6 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 					.dst_mac = ETH_MASK_ALL,
 				},
 				.l3_type = get_outer_l3_type(config),
-				.ip4 = {
-					.src_ip = UINT32_MAX,
-					.dst_ip = UINT32_MAX,
-				},
-				.ip6 = {
-					.src_ip = IP6_MASK_ALL,
-					.dst_ip = IP6_MASK_ALL,
-				},
 			},
 			.tun = {
 				.type = DOCA_FLOW_TUN_GENEVE,
@@ -197,11 +192,18 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 			},
 		}
 	};
+	if (config->vnet_config->outer_addr_fam==AF_INET) {
+		actions.encap.outer.ip4.src_ip = UINT32_MAX;
+		actions.encap.outer.ip4.dst_ip = UINT32_MAX;
+	} else {
+		memset(actions.encap.outer.ip6.src_ip, 0xFF, sizeof(actions.encap.outer.ip6.src_ip));
+		memset(actions.encap.outer.ip6.dst_ip, 0xFF, sizeof(actions.encap.outer.ip6.dst_ip));
+	}
 	struct doca_flow_actions *actions_ptr_arr[] = { &actions };
 
 	struct doca_flow_action_desc encap_action_desc = {
 		.type = DOCA_FLOW_ACTION_DECAP_ENCAP,
-		.decap_encap.is_l2 = true,
+		.decap_encap.is_l2 = false,
 	};
 	struct doca_flow_action_descs encap_action_descs = {
 		.nb_action_desc = 1,
@@ -325,30 +327,30 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 		},
 		.outer = {
 			.l3_type = get_outer_l3_type(config),
-			.ip4 = {
-				.src_ip = UINT32_MAX,
-			},
-			.ip6 = {
-				.src_ip = IP6_MASK_ALL,
-			},
 		},
 		.tun = {
 			.type = DOCA_FLOW_TUN_GENEVE,
 			.geneve = {
 				.vni = TUNNEL_ID_ANY,
-				.next_proto = rte_cpu_to_be_16(DOCA_ETHER_TYPE_IPV6),
 			},
 		},
 		.inner = {
 			.l3_type = get_inner_l3_type(config),
-			.ip4 = {
-				.dst_ip = UINT32_MAX,
-			},
-			.ip6 = {
-				.dst_ip = IP6_MASK_ALL,
-			},
 		},
 	};
+
+	if (config->vnet_config->outer_addr_fam==AF_INET) {
+		match.outer.ip4.src_ip = UINT32_MAX;
+	} else {
+		memset(match.outer.ip6.src_ip, 0xFF, sizeof(match.outer.ip6.src_ip));
+	}
+
+	if (config->vnet_config->inner_addr_fam==AF_INET) {
+		match.inner.ip4.dst_ip = UINT32_MAX;
+	} else {
+		memset(match.outer.ip6.dst_ip, 0xFF, sizeof(match.outer.ip6.dst_ip));
+	}
+
 	struct doca_flow_fwd fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
 		.port_id = PORT_ID_ANY,
@@ -364,7 +366,7 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 
 	struct doca_flow_action_desc decap_action_desc = {
 		.type = DOCA_FLOW_ACTION_DECAP_ENCAP,
-		.decap_encap.is_l2 = true,
+		.decap_encap.is_l2 = false,
 	};
 	struct doca_flow_action_descs decap_action_descs = {
 		.nb_action_desc = 1,
@@ -550,7 +552,7 @@ create_root_pipe(struct doca_flow_port *port,
         .next_pipe = decap_pipe,
     };
     res = doca_flow_pipe_control_add_entry(
-        0, priority_vf_to_uplink, pipe, &match_uplink, &match_mask, NULL, NULL, NULL, NULL, &fwd_uplink, NULL,
+        0, priority_uplink_to_vf, pipe, &match_uplink, &match_mask, NULL, NULL, NULL, NULL, &fwd_uplink, NULL,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
@@ -562,7 +564,7 @@ create_root_pipe(struct doca_flow_port *port,
         .next_pipe = encap_pipe,
     };
     res = doca_flow_pipe_control_add_entry(
-        0, priority_uplink_to_vf, pipe, NULL, NULL, NULL, NULL, NULL, NULL, &fwd_vf, NULL,
+        0, priority_vf_to_uplink, pipe, NULL, NULL, NULL, NULL, NULL, NULL, &fwd_vf, NULL,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",

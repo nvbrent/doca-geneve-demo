@@ -240,11 +240,12 @@ create_encap_entry(
 	uint32_t pipe_queue,
 	struct geneve_demo_config *config)
 {
+	int inner_addr_fam = config->vnet_config->inner_addr_fam;
 	struct entries_status entries_status = {};
 	struct doca_flow_match match = {
 		.parser_meta.port_meta = session->vf_port_id,
 	};
-	if (config->vnet_config->inner_addr_fam==AF_INET6) {
+	if (inner_addr_fam==AF_INET6) {
 		memcpy(match.outer.ip6.dst_ip, session->virt_remote_ip.ipv6, 16);
 	} else {
 		match.outer.ip4.dst_ip = session->virt_remote_ip.ipv4;
@@ -265,7 +266,7 @@ create_encap_entry(
 				.type = DOCA_FLOW_TUN_GENEVE,
 				.geneve = {
 					.vni = BUILD_VNI(session->vnet_id_egress),
-                    .next_proto = rte_cpu_to_be_16(DOCA_ETHER_TYPE_IPV6),
+                    .next_proto = rte_cpu_to_be_16(inner_addr_fam==AF_INET6 ? DOCA_ETHER_TYPE_IPV6 : DOCA_ETHER_TYPE_IPV4),
 				},
 			},
 		},

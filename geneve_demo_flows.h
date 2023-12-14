@@ -17,6 +17,7 @@
 #include <geneve_demo.h>
 
 #define ETH_MASK_ALL "\xFF\xFF\xFF\xFF\xFF\xFF"
+#define IP6_MASK_ALL { UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX }
 #define PORT_ID_ANY UINT16_MAX
 #define PORT_META_ID_ANY UINT32_MAX
 #define TUNNEL_ID_ANY UINT32_MAX

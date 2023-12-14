@@ -357,9 +357,13 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	};
 	struct doca_flow_actions decap_action = {
 		.decap = true,
-		.outer.eth = {
-			.src_mac = ETH_MASK_ALL,
-			.dst_mac = ETH_MASK_ALL,
+		.outer = {
+			.eth = {
+				.src_mac = ETH_MASK_ALL,
+				.dst_mac = ETH_MASK_ALL,
+				.type = UINT16_MAX,
+			},
+			.l3_type = get_inner_l3_type(config),
 		},
 	};
 	struct doca_flow_actions *actions_arr[] = { &decap_action };
@@ -429,6 +433,10 @@ create_decap_entry(
 	};
 	struct doca_flow_actions actions = {
 		.decap = true,
+		.outer = {
+			.l3_type = get_inner_l3_type(config),
+			.eth.type = RTE_BE16(config->vnet_config->inner_addr_fam==AF_INET ? RTE_ETHER_TYPE_IPV4 : RTE_ETHER_TYPE_IPV6),
+		},
 	};
 	memcpy(actions.outer.eth.dst_mac, session->decap_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
 	struct rte_ether_addr* p_decap_src_mac = (struct rte_ether_addr*)actions.outer.eth.src_mac;

@@ -48,6 +48,63 @@ static void install_signal_handler(void)
 	signal(SIGTERM, signal_handler);
 }
 
+static int64_t max64(int64_t x, int64_t y)
+{
+	return x > y ? x : y;
+}
+
+static int64_t show_counters(
+	struct rte_hash *session_ht,
+	struct geneve_demo_config *config, 
+	bool display)
+{
+	session_id_t *session_id = NULL;
+	struct session_def *session = NULL;
+	uint32_t session_itr = 0;
+	int64_t total_hits = 0;
+
+	while (rte_hash_iterate(session_ht, (const void**)&session_id, (void**)&session, &session_itr) >= 0) {
+		doca_error_t res;
+		struct doca_flow_query flow_stats = {};
+		
+		res = doca_flow_query_entry(session->encap_entry, &flow_stats);
+		int64_t encap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		
+		res = doca_flow_query_entry(session->decap_entry, &flow_stats);
+		int64_t decap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		
+		if (display)
+			DOCA_LOG_INFO("Session %ld encap: %ld hits, decap: %ld hits", 
+				session->session_id, encap_hits, decap_hits);
+		
+		total_hits += max64(0, encap_hits) + max64(0, decap_hits);
+	}
+	{
+		doca_error_t res;
+		struct doca_flow_query flow_stats = {};
+		
+		res = doca_flow_query_entry(config->arp_ingress_entry, &flow_stats);
+		int64_t arp_ingress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		
+		res = doca_flow_query_entry(config->arp_egress_entry, &flow_stats);
+		int64_t arp_egress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		
+		res = doca_flow_query_entry(config->ping_ingress_entry, &flow_stats);
+		int64_t ping_ingress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		
+		res = doca_flow_query_entry(config->ping_egress_entry, &flow_stats);
+		int64_t ping_egress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		
+		if (display)
+			DOCA_LOG_INFO("ARP ingress: %ld hits, egress: %ld hits; PING ingress: %ld hits, egress: %ld hits", 
+				arp_ingress_hits, arp_egress_hits, ping_ingress_hits, ping_egress_hits);
+
+		total_hits += max64(0, arp_ingress_hits) + max64(0, arp_egress_hits);
+		total_hits += max64(0, ping_ingress_hits) + max64(0, ping_egress_hits);
+	}
+	return total_hits;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -132,42 +189,12 @@ main(int argc, char **argv)
 		rte_eal_wait_lcore(lcore_id);
 	}
 #else
+	int64_t prev_total_count = -1;
 	while (!force_quit) {
-		sleep(5);
-		session_id_t *session_id = NULL;
-		struct session_def *session = NULL;
-		uint32_t session_itr = 0;
-		while (rte_hash_iterate(session_ht, (const void**)&session_id, (void**)&session, &session_itr) >= 0) {
-			doca_error_t res;
-			struct doca_flow_query flow_stats = {};
-			
-			res = doca_flow_query_entry(session->encap_entry, &flow_stats);
-			int64_t encap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			res = doca_flow_query_entry(session->decap_entry, &flow_stats);
-			int64_t decap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			DOCA_LOG_INFO("Session %ld encap: %ld hits, decap: %ld hits", 
-				session->session_id, encap_hits, decap_hits);
-		}
-		{
-			doca_error_t res;
-			struct doca_flow_query flow_stats = {};
-			
-			res = doca_flow_query_entry(config.arp_ingress_entry, &flow_stats);
-			int64_t arp_ingress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			res = doca_flow_query_entry(config.arp_egress_entry, &flow_stats);
-			int64_t arp_egress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			res = doca_flow_query_entry(config.ping_ingress_entry, &flow_stats);
-			int64_t ping_ingress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			res = doca_flow_query_entry(config.ping_egress_entry, &flow_stats);
-			int64_t ping_egress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			DOCA_LOG_INFO("ARP ingress: %ld hits, egress: %ld hits; PING ingress: %ld hits, egress: %ld hits", 
-				arp_ingress_hits, arp_egress_hits, ping_ingress_hits, ping_egress_hits);
+		sleep(2);
+
+		if (show_counters(session_ht, &config, false) != prev_total_count) {
+			prev_total_count = show_counters(session_ht, &config, true);
 		}
 	}
 #endif

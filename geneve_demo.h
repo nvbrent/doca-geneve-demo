@@ -45,12 +45,6 @@ struct geneve_demo_config
     uint16_t uplink_port_id; // always 0
 
 	struct vnet_config_t *vnet_config;
-
-    struct doca_flow_pipe_entry *arp_ingress_entry;
-    struct doca_flow_pipe_entry *arp_egress_entry;
-
-    struct doca_flow_pipe_entry *ping_ingress_entry;
-    struct doca_flow_pipe_entry *ping_egress_entry;
 };
 
 typedef uint64_t session_id_t;

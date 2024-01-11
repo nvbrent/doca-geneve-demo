@@ -12,7 +12,6 @@
 
 DOCA_LOG_REGISTER(GENEVE_FLOWS);
 
-static const uint16_t priority_arp = 1;
 static const uint16_t priority_uplink_to_vf = 2;
 static const uint16_t priority_vf_to_uplink = 3;
 
@@ -506,58 +505,6 @@ create_decap_entry(
 	return entry;
 }
 
-void forward_arp_ping(
-	const char *entry_name,
-	struct doca_flow_pipe *pipe,
-	int addr_fam,
-	bool is_arp, // else ping
-	struct doca_flow_pipe_entry **ingress_entry,
-	struct doca_flow_pipe_entry **egress_entry)
-{
-	struct doca_flow_match mask = { .parser_meta.port_meta = UINT32_MAX };
-	struct doca_flow_match match = { };
-	if (addr_fam==AF_INET) {
-		if (is_arp) {
-			mask.outer.eth.type = UINT16_MAX;
-			match.outer.eth.type = RTE_BE16(RTE_ETHER_TYPE_ARP);
-		} else { // is ping
-			mask.parser_meta.outer_l3_type = DOCA_FLOW_L3_META_IPV4;
-			mask.parser_meta.outer_l4_type = DOCA_FLOW_L4_META_ICMP;
-			match.parser_meta = mask.parser_meta;
-		}
-	} else {
-		mask.parser_meta.outer_l3_type = DOCA_FLOW_L3_META_IPV6;
-		mask.parser_meta.outer_l4_type = DOCA_FLOW_L4_META_ICMP;
-		match.parser_meta = mask.parser_meta;
-	}
-
-	struct doca_flow_fwd fwd = {
-		.type = DOCA_FLOW_FWD_PORT,
-	};
-
-	match.parser_meta.port_meta = 0;
-	fwd.port_id = 1;
-
-	doca_error_t res = doca_flow_pipe_control_add_entry(
-		0, priority_arp, pipe, &match, &mask, NULL, NULL, NULL, &monitor_count, &fwd, NULL,
-		ingress_entry);
-	if (res != DOCA_SUCCESS) {
-		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry Ingress-%s: %d (%s)\n",
-			entry_name, res, doca_error_get_descr(res));
-	}
-
-	match.parser_meta.port_meta = 1;
-	fwd.port_id = 0;
-
-	res = doca_flow_pipe_control_add_entry(
-		0, priority_arp, pipe, &match, &mask, NULL, NULL, NULL, &monitor_count, &fwd, NULL,
-		egress_entry);
-	if (res != DOCA_SUCCESS) {
-		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry Egress-%s: %d (%s)\n",
-			entry_name, res, doca_error_get_descr(res));
-	}
-}
-
 struct doca_flow_pipe*
 create_root_pipe(struct doca_flow_port *port,
     struct doca_flow_pipe *decap_pipe,
@@ -602,29 +549,30 @@ create_root_pipe(struct doca_flow_port *port,
 			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
+	int inner_addr_fam = config->vnet_config->inner_addr_fam;
+	
+	struct doca_flow_match match_vf_mask = {
+		.parser_meta.port_meta = PORT_META_ID_ANY,
+		.outer.eth.type = UINT16_MAX,
+	};
+	struct doca_flow_match match_vf = {
+		.parser_meta.port_meta = 1,
+		.outer.eth.type = RTE_BE16(inner_addr_fam==AF_INET ? DOCA_ETHER_TYPE_IPV4 : DOCA_ETHER_TYPE_IPV6),
+	};
     struct doca_flow_fwd fwd_vf = {
         .type = DOCA_FLOW_FWD_PIPE,
         .next_pipe = encap_pipe,
     };
     res = doca_flow_pipe_control_add_entry(
-        0, priority_vf_to_uplink, pipe, NULL, NULL, NULL, NULL, NULL, NULL, &fwd_vf, NULL,
+        0, priority_vf_to_uplink, pipe, &match_vf, &match_vf_mask, NULL, NULL, NULL, NULL, &fwd_vf, NULL,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
-	int inner_addr_fam = config->vnet_config->inner_addr_fam;
-	forward_arp_ping("ARP", pipe, inner_addr_fam, true, &config->arp_ingress_entry, &config->arp_egress_entry);
-	if (inner_addr_fam == AF_INET) {
-		forward_arp_ping("PING", pipe, inner_addr_fam, false, &config->ping_ingress_entry, &config->ping_egress_entry);
-	} else {
-		// IPv6 uses ICMP for both discovery and for ping
-		config->ping_ingress_entry = config->arp_ingress_entry;
-		config->ping_egress_entry = config->arp_egress_entry;
-	}
-
-	// TODO: DHCP
+	// ARP ether_type (0x806) will miss all control pipe entries, and be processed 
+	// by RSS (the default miss handler)
 
 	return pipe;
 }

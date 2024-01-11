@@ -96,6 +96,8 @@ main(int argc, char **argv)
 
 	if (config.dpdk_config.port_config.nb_ports < 2) {
 		rte_exit(EXIT_FAILURE, "Num ports probed: %d, min: %d\n", config.dpdk_config.port_config.nb_ports, 2);
+	} else {
+		DOCA_LOG_INFO("Starting %d ports...", config.dpdk_config.port_config.nb_ports);
 	}
 
 	install_signal_handler();
@@ -123,15 +125,11 @@ main(int argc, char **argv)
 
 	load_vnet_conf_sessions(&config, session_ht, encap_pipe, decap_pipe);
 	
-#if 0
 	uint32_t lcore_id;
 	RTE_LCORE_FOREACH_WORKER(lcore_id) {
 		rte_eal_remote_launch(lcore_pkt_proc_func, &config, lcore_id);
 	}
-	RTE_LCORE_FOREACH_WORKER(lcore_id) {
-		rte_eal_wait_lcore(lcore_id);
-	}
-#else
+
 	while (!force_quit) {
 		sleep(5);
 		session_id_t *session_id = NULL;
@@ -150,31 +148,20 @@ main(int argc, char **argv)
 			DOCA_LOG_INFO("Session %ld encap: %ld hits, decap: %ld hits", 
 				session->session_id, encap_hits, decap_hits);
 		}
-		{
-			doca_error_t res;
-			struct doca_flow_query flow_stats = {};
-			
-			res = doca_flow_query_entry(config.arp_ingress_entry, &flow_stats);
-			int64_t arp_ingress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			res = doca_flow_query_entry(config.arp_egress_entry, &flow_stats);
-			int64_t arp_egress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			res = doca_flow_query_entry(config.ping_ingress_entry, &flow_stats);
-			int64_t ping_ingress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			res = doca_flow_query_entry(config.ping_egress_entry, &flow_stats);
-			int64_t ping_egress_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			DOCA_LOG_INFO("ARP ingress: %ld hits, egress: %ld hits; PING ingress: %ld hits, egress: %ld hits", 
-				arp_ingress_hits, arp_egress_hits, ping_ingress_hits, ping_egress_hits);
-		}
 	}
-#endif
+
+	RTE_LCORE_FOREACH_WORKER(lcore_id) {
+		DOCA_LOG_INFO("Stopping L-Core %d", lcore_id);
+		rte_eal_wait_lcore(lcore_id);
+	}
 	
-	for (int i = 0; i < nb_ports; i++) {
+	for (int i = 1; i < nb_ports; i++) {
+		DOCA_LOG_INFO("Stopping Port %d...", i);
 		doca_flow_port_stop(config.ports[i]);
 	}
+	DOCA_LOG_INFO("Stopping Port %d...", 0);
+	doca_flow_port_stop(config.ports[0]); // stop the switch port last
+
 	doca_flow_destroy();
 	doca_argp_destroy();
 

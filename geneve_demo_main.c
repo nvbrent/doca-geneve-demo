@@ -48,6 +48,40 @@ static void install_signal_handler(void)
 	signal(SIGTERM, signal_handler);
 }
 
+static int64_t max64(int64_t x, int64_t y)
+{
+	return x > y ? x : y;
+}
+
+static int64_t show_counters(
+	struct rte_hash *session_ht,
+	struct geneve_demo_config *config, 
+	bool display)
+{
+	session_id_t *session_id = NULL;
+	struct session_def *session = NULL;
+	uint32_t session_itr = 0;
+	int64_t total_hits = 0;
+
+	while (rte_hash_iterate(session_ht, (const void**)&session_id, (void**)&session, &session_itr) >= 0) {
+		doca_error_t res;
+		struct doca_flow_query flow_stats = {};
+		
+		res = doca_flow_query_entry(session->encap_entry, &flow_stats);
+		int64_t encap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		
+		res = doca_flow_query_entry(session->decap_entry, &flow_stats);
+		int64_t decap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		
+		if (display)
+			DOCA_LOG_INFO("Session %ld encap: %ld hits, decap: %ld hits", 
+				session->session_id, encap_hits, decap_hits);
+		
+		total_hits += max64(0, encap_hits) + max64(0, decap_hits);
+	}
+	return total_hits;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -130,23 +164,12 @@ main(int argc, char **argv)
 		rte_eal_remote_launch(lcore_pkt_proc_func, &config, lcore_id);
 	}
 
+	int64_t prev_total_count = -1;
 	while (!force_quit) {
-		sleep(5);
-		session_id_t *session_id = NULL;
-		struct session_def *session = NULL;
-		uint32_t session_itr = 0;
-		while (rte_hash_iterate(session_ht, (const void**)&session_id, (void**)&session, &session_itr) >= 0) {
-			doca_error_t res;
-			struct doca_flow_query flow_stats = {};
-			
-			res = doca_flow_query_entry(session->encap_entry, &flow_stats);
-			int64_t encap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			res = doca_flow_query_entry(session->decap_entry, &flow_stats);
-			int64_t decap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
-			
-			DOCA_LOG_INFO("Session %ld encap: %ld hits, decap: %ld hits", 
-				session->session_id, encap_hits, decap_hits);
+		sleep(2);
+
+		if (show_counters(session_ht, &config, false) != prev_total_count) {
+			prev_total_count = show_counters(session_ht, &config, true);
 		}
 	}
 

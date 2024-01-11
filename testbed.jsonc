@@ -1,0 +1,175 @@
+{
+    "outer-ip-ver": 6,
+    "inner-ip-ver": 4,
+    "hosts": [
+        {
+            "name": "clx-venus-gen5-087",
+            "nics": [ 
+                { 
+                    "name": "ens4np0", 
+                    "mac": "10:70:fd:cd:15:56",
+                    "ip": "11::57",
+                    "pci": "c2:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "ens4v0", 
+                            "mac": "a2:f2:1b:e8:87:d8",
+                            "pci": "c2:00.1", 
+                            "ip": "172.3.50.87",
+                            "vnid-out": 101
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "clx-venus-gen5-088",
+            "nics": [ 
+                { 
+                    "name": "ens4np0", 
+                    "mac": "10:70:fd:dc:f8:84",
+                    "ip": "11::58",
+                    "pci": "c2:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "ens4v0", 
+                            "mac": "8e:39:22:a7:9f:4b",
+                            "pci": "c2:00.1", 
+                            "ip": "172.3.50.88",
+                            "vnid-out": 102
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "clx-venus-gen5-099",
+            "nics": [ 
+                { 
+                    "name": "ens4np0", 
+                    "mac": "e8:eb:d3:5e:a0:fe",
+                    "ip": "11::63",
+                    "pci": "c2:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "ens4v0", 
+                            "mac": "d2:fb:84:4f:9d:a4",
+                            "pci": "c2:00.1", 
+                            "ip": "172.3.50.99",
+                            "vnid-out": 103
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "clx-venus-gen5-100",
+            "nics": [ 
+                { 
+                    "name": "ens4np0", 
+                    "mac": "10:70:fd:cd:19:68",
+                    "ip": "11::64",
+                    "pci": "c2:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "ens4v0", 
+                            "mac": "e2:2c:e5:98:84:35",
+                            "pci": "c2:00.1", 
+                            "ip": "172.3.50.100",
+                            "vnid-out": 104
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "clx-venus-gen5-101",
+            "nics": [ 
+                { 
+                    "name": "ens4np0", 
+                    "mac": "10:70:fd:cd:1b:ae",
+                    "ip": "11::65",
+                    "pci": "c2:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "ens4v0", 
+                            "mac": "ce:94:39:36:a6:e9",
+                            "pci": "c2:00.1", 
+                            "ip": "172.3.50.101",
+                            "vnid-out": 105
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "clx-venus-gen5-102",
+            "nics": [ 
+                { 
+                    "name": "ens4np0", 
+                    "mac": "e8:eb:d3:5e:a1:36",
+                    "ip": "11::66",
+                    "pci": "c2:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "ens4v0", 
+                            "mac": "5a:23:86:ef:d0:f4",
+                            "pci": "c2:00.1", 
+                            "ip": "172.3.50.102",
+                            "vnid-out": 106
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "clx-venus-gen5-103",
+            "nics": [ 
+                { 
+                    "name": "ens4np0", 
+                    "mac": "10:70:fd:cd:1b:60",
+                    "ip": "11::67",
+                    "pci": "c2:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "ens4v0", 
+                            "mac": "b6:6b:61:14:ae:5d",
+                            "pci": "c2:00.1", 
+                            "ip": "172.3.50.103",
+                            "vnid-out": 107
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "clx-venus-gen5-104",
+            "nics": [ 
+                { 
+                    "name": "ens4np0", 
+                    "mac": "10:70:fd:fa:41:2e",
+                    "ip": "11::68",
+                    "pci": "c2:00.0",
+                    "vnics": [ 
+                        { 
+                            "index": 0, 
+                            "name": "ens4v0", 
+                            "mac": "b2:77:f0:e8:01:09",
+                            "pci": "c2:00.1", 
+                            "ip": "172.3.50.104",
+                            "vnid-out": 108
+                        }
+                    ]
+                }
+            ]
+        },
+    ],
+    "route-all-to-all": true
+}

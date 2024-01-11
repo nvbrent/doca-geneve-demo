@@ -15,7 +15,6 @@ struct vnet_flow_builder_config
     struct rte_hash *session_ht;
 	struct doca_flow_pipe *encap_pipe; 
 	struct doca_flow_pipe *decap_pipe;
-    const struct vnet_host_t *self;
     session_id_t next_session_id;
 };
 
@@ -116,7 +115,7 @@ static bool build_session(
     const char *local_vnic_name,
     const char *remote_vnic_name)
 {
-    const struct vnet_host_t *local_host = builder_config->self;
+    const struct vnet_host_t *local_host = builder_config->demo_config->self;
     const struct vnet_host_t *remote_host = find_phys_host_by_name(remote_host_name, builder_config->demo_config->vnet_config);
     if (!remote_host) {
         DOCA_LOG_ERR("Host %s: remote host not found", remote_host_name);
@@ -199,7 +198,7 @@ int load_vnet_conf_sessions(
         .decap_pipe = decap_pipe,
         .next_session_id = 4000,
     };
-    builder_config.self = find_self(demo_config->uplink_port_id, demo_config->vnet_config);
+    demo_config->self = find_self(demo_config->uplink_port_id, demo_config->vnet_config);
 
     uint32_t total_sessions = 0;
     for (uint16_t i=0; i<demo_config->vnet_config->num_routes; i++) {
@@ -207,7 +206,7 @@ int load_vnet_conf_sessions(
         // check each end of the route
         for (int idx_local=0; idx_local<2; idx_local++) {
             const char *local_hostname = route->hostname[idx_local];
-            if (strcmp(local_hostname, builder_config.self->name) != 0)
+            if (strcmp(local_hostname, demo_config->self->name) != 0)
                 continue;
 
             int idx_remote = idx_local ^ 1;

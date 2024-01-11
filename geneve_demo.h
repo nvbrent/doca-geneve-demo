@@ -22,6 +22,7 @@
 #define KEY_LEN 256
 
 struct vnet_config_t;
+struct vnet_host_t;
 
 typedef uint8_t ipv6_addr_t[16];
 typedef uint8_t crypto_key_t[KEY_LEN / 8];
@@ -45,6 +46,7 @@ struct geneve_demo_config
     uint16_t uplink_port_id; // always 0
 
 	struct vnet_config_t *vnet_config;
+    const struct vnet_host_t *self;
 };
 
 typedef uint64_t session_id_t;

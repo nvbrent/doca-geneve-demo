@@ -73,7 +73,7 @@ static int64_t show_counters(
 		res = doca_flow_query_entry(session->decap_entry, &flow_stats);
 		int64_t decap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
 		
-		if (display)
+		if (display && (encap_hits || decap_hits))
 			DOCA_LOG_INFO("Session %ld encap: %ld hits, decap: %ld hits", 
 				session->session_id, encap_hits, decap_hits);
 		

@@ -90,6 +90,26 @@ find_nic_and_vnic(
     return false;
 }
 
+static const struct rte_ether_addr*
+get_session_dmac(
+    const struct nic_t *local_nic,
+    const struct nic_t *remote_nic)
+{
+    if (local_nic->has_gateway && 
+        local_nic->subnet_mask_len)
+    {
+        // TODO: support outer IPv4
+        // TODO: support subnet mask not a multiple of 8
+        for (int i=0; i<local_nic->subnet_mask_len / 8; i++) {
+            if (local_nic->ip.ipv6[i] != remote_nic->ip.ipv6[i]) {
+                // different subnets; send to gateway
+                return &local_nic->gw_mac_addr;
+            }
+        }
+    }
+    return &remote_nic->mac_addr;
+}
+
 static bool build_session(
     struct vnet_flow_builder_config *builder_config,
     const char *remote_host_name,
@@ -129,7 +149,7 @@ static bool build_session(
     session->vnet_id_egress = local_vnic->vnet_id_out;
 
     session->outer_smac = local_nic->mac_addr;
-    session->outer_dmac = remote_nic->mac_addr;
+    session->outer_dmac = *get_session_dmac(local_nic, remote_nic);
     
     if (builder_config->demo_config->vnet_config->outer_addr_fam == AF_INET) {
         session->outer_local_ip.ipv4 = local_nic->ip.ipv4;

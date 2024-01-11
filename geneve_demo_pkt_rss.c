@@ -27,6 +27,10 @@ handle_arp(
     uint16_t queue_id, 
     const struct rte_mbuf *request_pkt)
 {
+    if (port_id != 1) {
+        return 0;
+    }
+
 	const struct rte_ether_hdr *request_eth_hdr = rte_pktmbuf_mtod(request_pkt, struct rte_ether_hdr *);
     const struct rte_arp_hdr *request_arp_hdr = (const void*)&request_eth_hdr[1];
     uint16_t arp_op = RTE_BE16(request_arp_hdr->arp_opcode);
@@ -71,9 +75,6 @@ handle_arp(
         nb_tx_packets = rte_eth_tx_burst(port_id, queue_id, &response_pkt, 1);
         if (nb_tx_packets != 1) {
             DOCA_LOG_WARN("rte_eth_tx_burst returned %d", nb_tx_packets);
-        } else {
-            DOCA_LOG_INFO("Sent %d packets on port_id %d queue %d",
-                nb_tx_packets, port_id, queue_id);
         }
     }
     
@@ -93,13 +94,12 @@ handle_packet(
 {
 	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(packet, struct rte_ether_hdr *);
 	uint16_t ether_type = htons(eth_hdr->ether_type);
+    if (ether_type > 1500 && ether_type != 0x88cc) { // ignore LLDP
+        DOCA_LOG_INFO("Received ethertype 0x%x on port %d", ether_type, port_id);
+    }
 
     if (ether_type == RTE_ETHER_TYPE_ARP) {
         handle_arp(mpool, port_id, queue_id, packet);
-    } else if (ether_type == RTE_ETHER_TYPE_IPV4) {
-		DOCA_LOG_INFO("Received IPV4");
-	} else if (ether_type == RTE_ETHER_TYPE_IPV6) {
-		DOCA_LOG_INFO("received IPV6");
 	}
 	return 0;
 }
@@ -140,9 +140,11 @@ lcore_pkt_proc_func(void *lcore_args)
             if (nb_rx_packets > 0) {
                 rte_pktmbuf_free_bulk(rx_packets, nb_rx_packets);
 
-                double sec = (double)(rte_rdtsc() - t_start) * tsc_to_seconds;
-                printf("L-Core %d port %d: processed %d packets in %f seconds\n", 
-                    lcore_id, port_id, nb_rx_packets, sec);
+                if (false) {
+                    double sec = (double)(rte_rdtsc() - t_start) * tsc_to_seconds;
+                    printf("L-Core %d port %d: processed %d packets in %f seconds\n", 
+                        lcore_id, port_id, nb_rx_packets, sec);
+                }
             }
         }
 	}

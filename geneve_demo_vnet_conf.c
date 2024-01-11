@@ -126,7 +126,7 @@ static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic
 static doca_error_t parse_nic(struct json_object *nic_obj, struct nic_t *nic, int addr_fam_outer, int addr_fam_inner)
 {
     // parse name, mac, ip, pci
-    struct json_object *name_obj, *mac_obj, *pci_obj, *ip_obj, *vnics_obj;
+    struct json_object *name_obj, *mac_obj, *pci_obj, *ip_obj, *gw_mac_obj, *vnics_obj;
     if (!json_object_object_get_ex(nic_obj, "name", &name_obj)) {
         DOCA_LOG_ERR("NIC \"name\" required");
         return DOCA_ERROR_INVALID_VALUE;
@@ -151,10 +151,31 @@ static doca_error_t parse_nic(struct json_object *nic_obj, struct nic_t *nic, in
         DOCA_LOG_ERR("NIC \"ip\" required");
         return DOCA_ERROR_INVALID_VALUE;
     }
-    const char *ip_str = json_object_get_string(ip_obj);
+    char *ip_str = strdup(json_object_get_string(ip_obj));
+    char *ip_str_term = strchr(ip_str, '/');
+    if (ip_str_term) {
+        *ip_str_term = '\0';
+        nic->subnet_mask_len = atoi(ip_str_term+1);
+        if (nic->subnet_mask_len < 1 || nic->subnet_mask_len > 128 ||
+            (nic->subnet_mask_len % 8) != 0)
+        {
+            DOCA_LOG_ERR("NIC: Subnet mask length must be 1..128 and a multiple of 8");
+            return DOCA_ERROR_INVALID_VALUE;
+        }
+    }
     if (inet_pton(addr_fam_outer, ip_str, &nic->ip) != 1) { // 1 if successful
         DOCA_LOG_ERR("NIC: bad IPv6 addr: %s", ip_str);
         return DOCA_ERROR_INVALID_VALUE;
+    }
+    free(ip_str);
+
+    if (json_object_object_get_ex(nic_obj, "gw_mac", &gw_mac_obj)) {
+        const char *gw_mac_str = json_object_get_string(gw_mac_obj);
+        if (rte_ether_unformat_addr(gw_mac_str, &nic->gw_mac_addr) != 0) { // 0 if successful
+            DOCA_LOG_ERR("NIC: bad gw_mac addr: %s", gw_mac_str);
+            return DOCA_ERROR_INVALID_VALUE;
+        }
+        nic->has_gateway = true;
     }
 
     // parse vnics

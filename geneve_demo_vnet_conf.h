@@ -36,6 +36,10 @@ struct nic_t
     union ip_addr ip;
     uint16_t num_vnics;
     struct vnic_t *vnics;
+
+    uint16_t subnet_mask_len;
+    bool has_gateway;
+    struct rte_ether_addr gw_mac_addr;
 };
 
 // Describes a collection of physical and virtual NICs.

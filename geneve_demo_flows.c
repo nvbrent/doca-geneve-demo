@@ -179,6 +179,7 @@ struct doca_flow_header_format encap_pipe_action_outer_ipv4 = {
 	.ip4 = {
 		.src_ip = UINT32_MAX,
 		.dst_ip = UINT32_MAX,
+		.ttl = UINT8_MAX,
 	},
 };
 
@@ -191,6 +192,7 @@ struct doca_flow_header_format encap_pipe_action_outer_ipv6 = {
 	.ip6 = {
 		.src_ip = IP6_MASK_ALL,
 		.dst_ip = IP6_MASK_ALL,
+		.hop_limit = UINT8_MAX,
 	},
 };
 
@@ -304,9 +306,11 @@ create_encap_entry(
 	if (outer_addr_fam==AF_INET6) {
 		memcpy(actions.encap.outer.ip6.src_ip, session->outer_local_ip.ipv6, 16);
 		memcpy(actions.encap.outer.ip6.dst_ip, session->outer_remote_ip.ipv6, 16);
+		actions.encap.outer.ip6.hop_limit = 100;
 	} else {
 		actions.encap.outer.ip4.src_ip = session->outer_local_ip.ipv4;
 		actions.encap.outer.ip4.dst_ip = session->outer_remote_ip.ipv4;
+		actions.encap.outer.ip4.ttl = 100;
 	}
 	memcpy(actions.encap.outer.eth.src_mac, session->outer_smac.addr_bytes, RTE_ETHER_ADDR_LEN);
 	memcpy(actions.encap.outer.eth.dst_mac, session->outer_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);

@@ -134,7 +134,7 @@ handle_icmp6(
         
         for (int i=0; i<config->self->num_nics; i++) {
             const struct nic_t *my_nic = &config->self->nics[i];
-            ipv6_addr_t *my_ip = my_nic->ip.ipv6;
+            const uint8_t *my_ip = my_nic->ip.ipv6;
             if (memcmp(my_ip, request_sol_hdr->tgt_addr, sizeof(ipv6_addr_t)) != 0) {
                 continue;
             }

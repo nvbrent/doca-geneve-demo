@@ -2,8 +2,184 @@
     "outer-ip-ver": 6,
     "inner-ip-ver": 4,
     "hosts": [
+    	{
+            "name": "clx-moon-070",
+            "nics": [
+                {
+                    "name": "ens4np0",
+                    "mac": "a0:88:c2:d2:b7:22",
+                    "ip": "3000::70/64",
+                    "gw_mac": "9c:05:91:9b:7b:ff",
+                    "pci": "c2:00.0",
+                    "vnics": [
+                        {
+                            "index": 0,
+                            "name": "ens4v0",
+                            "mac": "9a:c1:dd:dc:bf:9f",
+                            "pci": "c2:00.1",
+                            "ip": "172.3.52.70",
+                            "vnid-out": 109
+                        }
+                    ]
+                }
+            ]
+        },
+    	{
+            "name": "clx-moon-072",
+            "nics": [
+                {
+                    "name": "ens4np0",
+                    "mac": "a0:88:c2:d2:b6:ba",
+                    "ip": "3000::72/64",
+                    "gw_mac": "9c:05:91:9b:7b:ff",
+                    "pci": "c2:00.0",
+                    "vnics": [
+                        {
+                            "index": 0,
+                            "name": "ens4v0",
+                            "mac": "02:f4:92:c1:e4:20",
+                            "pci": "c2:00.1",
+                            "ip": "172.3.52.72",
+                            "vnid-out": 110
+                        }
+                    ]
+                }
+            ]
+        },
+    	{
+            "name": "clx-moon-081",
+            "nics": [
+                {
+                    "name": "ens4np0",
+                    "mac": "a0:88:c2:d2:b8:8a",
+                    "ip": "3000::81/64",
+                    "gw_mac": "9c:05:91:9b:7b:ff",
+                    "pci": "c2:00.0",
+                    "vnics": [
+                        {
+                            "index": 0,
+                            "name": "ens4v0",
+                            "mac": "92:c3:f7:aa:b0:a3",
+                            "pci": "c2:00.1",
+                            "ip": "172.3.52.81",
+                            "vnid-out": 111
+                        }
+                    ]
+                }
+            ]
+        },
+    	{
+            "name": "clx-moon-082",
+            "nics": [
+                {
+                    "name": "ens4np0",
+                    "mac": "a0:88:c2:d2:b6:3a",
+                    "ip": "3000::82/64",
+                    "gw_mac": "9c:05:91:9b:7b:ff",
+                    "pci": "c2:00.0",
+                    "vnics": [
+                        {
+                            "index": 0,
+                            "name": "ens4v0",
+                            "mac": "f6:a3:80:62:d8:0d",
+                            "pci": "c2:00.1",
+                            "ip": "172.3.52.82",
+                            "vnid-out": 112
+                        }
+                    ]
+                }
+            ]
+        },
+    	{
+            "name": "clx-moon-083",
+            "nics": [
+                {
+                    "name": "ens4np0",
+                    "mac": "a0:88:c2:d2:b7:82",
+                    "ip": "4000::83/64",
+                    "gw_mac": "9c:05:91:9b:05:ff",
+                    "pci": "c2:00.0",
+                    "vnics": [
+                        {
+                            "index": 0,
+                            "name": "ens4v0",
+                            "mac": "a2:63:b0:55:78:95",
+                            "pci": "c2:00.1",
+                            "ip": "172.3.53.83",
+                            "vnid-out": 113
+                        }
+                    ]
+                }
+            ]
+        },
+    	{
+            "name": "clx-moon-084",
+            "nics": [
+                {
+                    "name": "ens4np0",
+                    "mac": "a0:88:c2:d2:b7:42",
+                    "ip": "4000::84/64",
+                    "gw_mac": "e2:c5:dc:92:2e:3a",
+                    "pci": "c2:00.0",
+                    "vnics": [
+                        {
+                            "index": 0,
+                            "name": "ens4v0",
+                            "mac": "9a:c1:dd:dc:bf:9f",
+                            "pci": "c2:00.1",
+                            "ip": "172.3.53.84",
+                            "vnid-out": 114
+                        }
+                    ]
+                }
+            ]
+        },
+    	{
+            "name": "clx-moon-085",
+            "nics": [
+                {
+                    "name": "ens4np0",
+                    "mac": "a0:88:c2:d2:b7:02",
+                    "ip": "4000::85/64",
+                    "gw_mac": "9c:05:91:9b:05:ff",
+                    "pci": "c2:00.0",
+                    "vnics": [
+                        {
+                            "index": 0,
+                            "name": "ens4v0",
+                            "mac": "d6:2e:3e:8f:bb:d9",
+                            "pci": "c2:00.1",
+                            "ip": "172.3.53.85",
+                            "vnid-out": 115
+                        }
+                    ]
+                }
+            ]
+        },
+    	{
+            "name": "clx-moon-086",
+            "nics": [
+                {
+                    "name": "ens4np0",
+                    "mac": "a0:88:c2:d2:b6:b2",
+                    "ip": "4000::86/64",
+                    "gw_mac": "9c:05:91:9b:05:ff",
+                    "pci": "c2:00.0",
+                    "vnics": [
+                        {
+                            "index": 0,
+                            "name": "ens4v0",
+                            "mac": "26:f3:1e:ed:d4:53",
+                            "pci": "c2:00.1",
+                            "ip": "172.3.53.86",
+                            "vnid-out": 116
+                        }
+                    ]
+                }
+            ]
+        },
         {
-            "name": "clx-venus-gen5-087",
+            "name": "clx-moon-087",
             "nics": [ 
                 { 
                     "name": "ens4np0", 
@@ -25,7 +201,7 @@
             ]
         },
         {
-            "name": "clx-venus-gen5-088",
+            "name": "clx-moon-088",
             "nics": [ 
                 { 
                     "name": "ens4np0", 
@@ -47,7 +223,7 @@
             ]
         },
         {
-            "name": "clx-venus-gen5-099",
+            "name": "clx-moon-099",
             "nics": [ 
                 { 
                     "name": "ens4np0", 
@@ -69,7 +245,7 @@
             ]
         },
         {
-            "name": "clx-venus-gen5-100",
+            "name": "clx-moon-100",
             "nics": [ 
                 { 
                     "name": "ens4np0", 
@@ -91,7 +267,7 @@
             ]
         },
         {
-            "name": "clx-venus-gen5-101",
+            "name": "clx-moon-101",
             "nics": [ 
                 { 
                     "name": "ens4np0", 
@@ -113,7 +289,7 @@
             ]
         },
         {
-            "name": "clx-venus-gen5-102",
+            "name": "clx-moon-102",
             "nics": [ 
                 { 
                     "name": "ens4np0", 
@@ -135,7 +311,7 @@
             ]
         },
         {
-            "name": "clx-venus-gen5-103",
+            "name": "clx-moon-103",
             "nics": [ 
                 { 
                     "name": "ens4np0", 
@@ -157,7 +333,7 @@
             ]
         },
         {
-            "name": "clx-venus-gen5-104",
+            "name": "clx-moon-104",
             "nics": [ 
                 { 
                     "name": "ens4np0", 
@@ -177,7 +353,7 @@
                     ]
                 }
             ]
-        },
+        }
     ],
     "route-all-to-all": true
 }

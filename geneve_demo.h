@@ -47,6 +47,10 @@ struct geneve_demo_config
 
 	struct vnet_config_t *vnet_config;
     const struct vnet_host_t *self;
+
+    uint32_t arp_response_meta_flag;
+
+    bool enable_uplink_icmp_handling;
 };
 
 typedef uint64_t session_id_t;
@@ -85,6 +89,16 @@ struct entries_status {
 };
 
 int lcore_pkt_proc_func(void *lcore_args);
+
+// Prepares argc,argv for parsing by DPDK by first removing all
+// -a arguments, so that DOCA can create the verbs device before
+// opening the port, as required by switch mode.
+int disable_dpdk_accept_args(
+	int argc, 
+	char *argv[], 
+	char *dpdk_argv[], 
+	char **pci_addr_arg, 
+	char **devarg);
 
 void geneve_demo_register_argp_params(void);
 

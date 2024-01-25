@@ -27,17 +27,16 @@ handle_arp(
     struct rte_mempool *mpool, 
     uint16_t port_id, 
     uint16_t queue_id, 
-    const struct rte_mbuf *request_pkt)
+    const struct rte_mbuf *request_pkt,
+    uint32_t arp_response_meta_flag)
 {
-    if (port_id != 1) {
-        return 0;
-    }
-
 	const struct rte_ether_hdr *request_eth_hdr = rte_pktmbuf_mtod(request_pkt, struct rte_ether_hdr *);
     const struct rte_arp_hdr *request_arp_hdr = (const void*)&request_eth_hdr[1];
     uint16_t arp_op = RTE_BE16(request_arp_hdr->arp_opcode);
-    if (arp_op != RTE_ARP_OP_REQUEST)
+    if (arp_op != RTE_ARP_OP_REQUEST) {
+        DOCA_LOG_ERR("RSS ARP Handler: expected op %d, got %d", RTE_ARP_OP_REQUEST, arp_op);
         return 0;
+    }
     
     struct rte_mbuf *response_pkt = rte_pktmbuf_alloc(mpool);
     if (!response_pkt) {
@@ -45,6 +44,9 @@ handle_arp(
         force_quit = true;
         return -1;
     }
+
+	*RTE_MBUF_DYNFIELD(response_pkt, rte_flow_dynf_metadata_offs, uint32_t*) = arp_response_meta_flag;
+	response_pkt->ol_flags |= rte_flow_dynf_metadata_mask;
 
     uint32_t pkt_size = sizeof(struct rte_ether_hdr) + sizeof(struct rte_arp_hdr);
     response_pkt->data_len = pkt_size;
@@ -94,14 +96,14 @@ struct icmp6_neighbor_sol_hdr {
     struct rte_icmp_base_hdr base;
     rte_be32_t reserved;
     ipv6_addr_t tgt_addr;
-    // options ignored
+    // assume no options
 } __rte_packed;
 
 struct icmp6_neighbor_adv_hdr {
     struct rte_icmp_base_hdr base;
     rte_be32_t r_s_o_res;
     ipv6_addr_t tgt_addr;
-    // options ignored
+    // assume no options
 } __rte_packed;
 
 static int
@@ -134,7 +136,7 @@ handle_icmp6(
         
         for (int i=0; i<config->self->num_nics; i++) {
             const struct nic_t *my_nic = &config->self->nics[i];
-            ipv6_addr_t *my_ip = my_nic->ip.ipv6;
+            const ipv6_addr_t *my_ip = &my_nic->ip.ipv6;
             if (memcmp(my_ip, request_sol_hdr->tgt_addr, sizeof(ipv6_addr_t)) != 0) {
                 continue;
             }
@@ -146,9 +148,12 @@ handle_icmp6(
                 return -1;
             }
 
-            uint32_t pkt_size = sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv6_hdr) + sizeof(struct icmp6_neighbor_adv_hdr);
+            uint32_t pkt_size = sizeof(struct rte_ether_hdr) + 
+                sizeof(struct rte_ipv6_hdr) + 
+                sizeof(struct icmp6_neighbor_adv_hdr) + 8;
             response_pkt->data_len = pkt_size;
             response_pkt->pkt_len = pkt_size;
+            memset(rte_pktmbuf_mtod(response_pkt, void*), 0x00, pkt_size);
 
             struct rte_ether_hdr *response_eth_hdr = rte_pktmbuf_mtod(response_pkt, struct rte_ether_hdr *);
             rte_ether_addr_copy(&my_nic->mac_addr, &response_eth_hdr->src_addr);
@@ -158,13 +163,19 @@ handle_icmp6(
             struct rte_ipv6_hdr *response_ipv6_hdr = (void*)&response_eth_hdr[1];
             memcpy(response_ipv6_hdr->src_addr, my_ip, sizeof(ipv6_addr_t));
             memcpy(response_ipv6_hdr->dst_addr, request_ip_hdr->src_addr, sizeof(ipv6_addr_t));
-            response_ipv6_hdr->payload_len = RTE_BE16(sizeof(struct icmp6_neighbor_adv_hdr));
+            response_ipv6_hdr->vtc_flow = RTE_BE32(0x6 << 28);
+            response_ipv6_hdr->payload_len = RTE_BE16(sizeof(struct icmp6_neighbor_adv_hdr) + 8);
+            response_ipv6_hdr->hop_limits = 100;
             response_ipv6_hdr->proto = DOCA_PROTO_ICMP6;
 
             struct icmp6_neighbor_adv_hdr *response_icmp6_hdr = (void*)&response_ipv6_hdr[1];
             response_icmp6_hdr->base.type = ICMP6_NEIGHBOR_ADVERTISEMENT;
             response_icmp6_hdr->r_s_o_res = 0x4; // solicited
-            memcpy(response_icmp6_hdr->tgt_addr, my_ip, sizeof(ipv6_addr_t));            
+            memcpy(response_icmp6_hdr->tgt_addr, my_ip, sizeof(ipv6_addr_t));
+            rte_be16_t icmp6cksum = rte_ipv6_phdr_cksum(response_ipv6_hdr, 0) +
+                rte_raw_cksum(response_icmp6_hdr, sizeof(struct icmp6_neighbor_adv_hdr));
+            response_icmp6_hdr->r_s_o_res = RTE_BE32(0x3 << 24); // Solicited, Override
+            response_icmp6_hdr->base.checksum = ~icmp6cksum - 1; // TODO
 
 #if 0
             rte_pktmbuf_dump(stdout, request_pkt, request_pkt->data_len);
@@ -195,10 +206,31 @@ handle_ipv6(
 {
 	const struct rte_ether_hdr *request_eth_hdr = rte_pktmbuf_mtod(packet, struct rte_ether_hdr *);
     const struct rte_ipv6_hdr *request_ip_hdr = (const void*)&request_eth_hdr[1];
-    //DOCA_LOG_DBG("IPv6 proto: %d", request_ip_hdr->proto);
-    if (request_ip_hdr->proto == DOCA_PROTO_ICMP6) {
+    char src_ip[INET6_ADDRSTRLEN];
+    char dst_ip[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, &request_ip_hdr->src_addr, src_ip, INET6_ADDRSTRLEN);
+    inet_ntop(AF_INET6, &request_ip_hdr->dst_addr, dst_ip, INET6_ADDRSTRLEN);
+    DOCA_LOG_INFO("IPv6 proto: %d, %s -> %s", request_ip_hdr->proto, src_ip, dst_ip);
+    if (request_ip_hdr->proto == DOCA_PROTO_ICMP6 && config->enable_uplink_icmp_handling) {
         return handle_icmp6(config, port_id, queue_id, packet);
     }
+    return 0;
+}
+
+static int
+handle_ipv4(
+    struct geneve_demo_config *config, 
+    uint16_t port_id, 
+    uint16_t queue_id, 
+    const struct rte_mbuf *packet)
+{
+	const struct rte_ether_hdr *request_eth_hdr = rte_pktmbuf_mtod(packet, struct rte_ether_hdr *);
+    const struct rte_ipv4_hdr *request_ip_hdr = (const void*)&request_eth_hdr[1];
+    char src_ip[INET_ADDRSTRLEN];
+    char dst_ip[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &request_ip_hdr->src_addr, src_ip, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &request_ip_hdr->dst_addr, dst_ip, INET_ADDRSTRLEN);
+    DOCA_LOG_INFO("IPv4 proto: %d, %s -> %s", request_ip_hdr->next_proto_id, src_ip, dst_ip);
     return 0;
 }
 
@@ -216,10 +248,12 @@ handle_packet(
     }
 
     if (ether_type == RTE_ETHER_TYPE_ARP) {
-        handle_arp(config->dpdk_config.mbuf_pool, port_id, queue_id, packet);
+        handle_arp(config->dpdk_config.mbuf_pool, port_id, queue_id, packet, config->arp_response_meta_flag);
 	} else if (ether_type == RTE_ETHER_TYPE_IPV6) {
         handle_ipv6(config, port_id, queue_id, packet);
-    } // TODO: handle outer ipv4 ICMP
+    } else if (ether_type == RTE_ETHER_TYPE_IPV4) {
+        handle_ipv4(config, port_id, queue_id, packet);
+    }
 	return 0;
 }
 
@@ -244,26 +278,28 @@ lcore_pkt_proc_func(void *lcore_args)
 
 	double tsc_to_seconds = 1.0 / (double)rte_get_timer_hz();
 
+    DOCA_LOG_INFO("L-Core %d polling queue %d (all ports)", lcore_id, queue_id);
+
 	while (!force_quit) {
         for (uint16_t port_id = 0; port_id < rte_eth_dev_count_avail() && !force_quit; port_id++) {
             uint64_t t_start = rte_rdtsc();
 
             uint16_t nb_rx_packets = rte_eth_rx_burst(
                 port_id, queue_id, rx_packets, MAX_RX_BURST_SIZE);
+            
+            if (!nb_rx_packets)
+                continue;
 
             for (int i=0; i<nb_rx_packets && !force_quit; i++) {
                 handle_packet(config, port_id, queue_id, rx_packets[i]);
-            }
-            
+            }            
 
-            if (nb_rx_packets > 0) {
-                rte_pktmbuf_free_bulk(rx_packets, nb_rx_packets);
+            rte_pktmbuf_free_bulk(rx_packets, nb_rx_packets);
 
-                if (false) {
-                    double sec = (double)(rte_rdtsc() - t_start) * tsc_to_seconds;
-                    printf("L-Core %d port %d: processed %d packets in %f seconds\n", 
-                        lcore_id, port_id, nb_rx_packets, sec);
-                }
+            if (true) {
+                double sec = (double)(rte_rdtsc() - t_start) * tsc_to_seconds;
+                printf("L-Core %d port %d: processed %d packets in %f seconds\n", 
+                    lcore_id, port_id, nb_rx_packets, sec);
             }
         }
 	}

@@ -24,7 +24,8 @@
 
 int
 flow_init(
-	struct geneve_demo_config *dpdk_config);
+	struct geneve_demo_config *dpdk_config,
+	struct doca_dev *pf_dev);
 
 struct doca_flow_pipe*
 create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config);
@@ -47,8 +48,18 @@ create_decap_entry(
     struct geneve_demo_config *config);
 
 struct doca_flow_pipe*
+create_rss_pipe(
+	struct doca_flow_port *port);
+
+struct doca_flow_pipe_entry**
 create_root_pipe(
     struct doca_flow_port *port, 
     struct doca_flow_pipe *decap_pipe,
     struct doca_flow_pipe *encap_pipe,
+	struct doca_flow_pipe *rss_pipe,
     struct geneve_demo_config *config);
+
+struct doca_flow_pipe_entry*
+create_arp_response_pipe(
+	struct doca_flow_port *port,
+	uint32_t arp_response_meta_flag);

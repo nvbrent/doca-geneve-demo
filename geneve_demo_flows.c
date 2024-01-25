@@ -24,7 +24,7 @@ struct doca_flow_monitor monitor_count = {
 #define MAC_ADDR_BYTES(b) b[0], b[1], b[2], b[3], b[4], b[5]
 
 static struct doca_flow_port *
-port_init(uint16_t port_id)
+port_init(uint16_t port_id, struct doca_dev *dev)
 {
 	char port_id_str[128];
 	snprintf(port_id_str, sizeof(port_id_str), "%d", port_id);
@@ -33,6 +33,7 @@ port_init(uint16_t port_id)
 		.port_id = port_id,
 		.type = DOCA_FLOW_PORT_DPDK_BY_ID,
 		.devargs = port_id_str,
+		.dev = dev,
 	};
 	struct doca_flow_port * port = NULL;
 	doca_error_t res = doca_flow_port_start(&port_cfg, &port);
@@ -126,10 +127,11 @@ process_all_entries(
 
 int
 flow_init(
-	struct geneve_demo_config *config)
+	struct geneve_demo_config *config,
+	struct doca_dev *pf_dev)
 {
 	struct doca_flow_cfg flow_cfg = {
-		.mode_args = "switch,hws",
+		.mode_args = "switch,hws,isolated",
 		.queues = config->dpdk_config.port_config.nb_queues,
 		.resource.nb_counters = 1024,
 		.cb = check_for_valid_entry,
@@ -142,7 +144,8 @@ flow_init(
 	DOCA_LOG_DBG("DOCA Flow init done");
 
 	for (uint16_t port_id = 0; port_id < config->dpdk_config.port_config.nb_ports; port_id++) {
-		config->ports[port_id] = port_init(port_id); // cannot return null
+		config->ports[port_id] = port_init(port_id,
+			port_id==0 ? pf_dev : NULL); // cannot return null
 	}
 
 	return 0;
@@ -510,12 +513,66 @@ create_decap_entry(
 }
 
 struct doca_flow_pipe*
+create_rss_pipe(
+	struct doca_flow_port *port)
+{
+	doca_error_t res;
+
+	struct doca_flow_pipe *rss_pipe;
+	struct doca_flow_match null_match = {};
+	struct doca_flow_pipe_cfg rss_pipe_cfg = {
+		.attr = {
+			.name = "RSS_PIPE",
+			.is_root = true, // special case
+			.nb_flows = 1,
+		},
+		.port = port,
+		.match = &null_match,
+		.match_mask = &null_match,
+		.monitor = &monitor_count,
+	};
+	uint16_t rss_queues[1] = { 0 };
+	struct doca_flow_fwd fwd_rss = {
+		.type = DOCA_FLOW_FWD_RSS,
+		.num_of_queues = 1,
+		.rss_queues = rss_queues,
+		.rss_outer_flags = DOCA_FLOW_RSS_IPV4 | DOCA_FLOW_RSS_IPV6,
+	};
+	res = doca_flow_pipe_create(&rss_pipe_cfg, &fwd_rss, NULL, &rss_pipe);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to create RSS pipe: %d (%s)\n",
+			res, doca_error_get_descr(res));
+	}
+
+    struct doca_flow_pipe_entry *entry = NULL;
+	res = doca_flow_pipe_add_entry(0, rss_pipe, &null_match, 
+		NULL, NULL, NULL, 0, NULL,
+		&entry);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to add default entry to RSS pipe: %d (%s)\n",
+			res, doca_error_get_descr(res));
+	}
+
+	return rss_pipe;
+}
+
+struct doca_flow_pipe_entry**
 create_root_pipe(struct doca_flow_port *port,
     struct doca_flow_pipe *decap_pipe,
     struct doca_flow_pipe *encap_pipe,
+	struct doca_flow_pipe *rss_pipe,
     struct geneve_demo_config *config)
 {
-	struct doca_flow_pipe *pipe = NULL;
+	// NOTE: in Switch mode, we cannot create an explicit flow to send packets to target=kernel.
+	// (Target type kernel is not supported in switch mode)
+	// The kernel must be reached by missing all entries in the root ingress table.
+
+	struct doca_flow_pipe_entry **entry_list = malloc(64 * sizeof(void*));
+	int n_entries = 0;
+
+	doca_error_t res;
+    struct doca_flow_pipe_entry *entry = NULL;
+	struct doca_flow_pipe *ctrl_pipe = NULL;
 
     struct doca_flow_pipe_cfg cfg = {
         .attr = {
@@ -527,56 +584,134 @@ create_root_pipe(struct doca_flow_port *port,
         .port = port,
     };
 
-	doca_error_t res = doca_flow_pipe_create(&cfg, NULL, NULL, &pipe);
+	res = doca_flow_pipe_create(&cfg, NULL, NULL, &ctrl_pipe);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
 			cfg.attr.name, res, doca_error_get_descr(res));
 	}
-    struct doca_flow_pipe_entry *entry = NULL;
 
-    struct doca_flow_match match_mask = {
+    struct doca_flow_match from_uplink_match_mask = {
         .parser_meta.port_meta = PORT_META_ID_ANY,
 		.tun.type = DOCA_FLOW_TUN_GENEVE,
     };
-    struct doca_flow_match match_uplink = {
+    struct doca_flow_match from_uplink_match = {
         .parser_meta.port_meta = 0,
+		.tun.type = DOCA_FLOW_TUN_GENEVE,
     };
-    struct doca_flow_fwd fwd_uplink = {
+    struct doca_flow_fwd from_uplink_fwd = {
         .type = DOCA_FLOW_FWD_PIPE,
         .next_pipe = decap_pipe,
     };
     res = doca_flow_pipe_control_add_entry(
-        0, priority_uplink_to_vf, pipe, &match_uplink, &match_mask, NULL, NULL, NULL, NULL, &fwd_uplink, NULL,
+        0, priority_uplink_to_vf, ctrl_pipe, &from_uplink_match, &from_uplink_match_mask, 
+		NULL, NULL, NULL, &monitor_count, &from_uplink_fwd, NULL,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_error_get_descr(res));
 	}
+	entry_list[n_entries++] = entry;
 
 	int inner_addr_fam = config->vnet_config->inner_addr_fam;
 	
-	struct doca_flow_match match_vf_mask = {
+	struct doca_flow_match from_vf_match_mask = {
 		.parser_meta.port_meta = PORT_META_ID_ANY,
 		.outer.eth.type = UINT16_MAX,
 	};
-	struct doca_flow_match match_vf = {
+	struct doca_flow_match from_vf_match = {
 		.parser_meta.port_meta = 1,
 		.outer.eth.type = RTE_BE16(inner_addr_fam==AF_INET ? DOCA_ETHER_TYPE_IPV4 : DOCA_ETHER_TYPE_IPV6),
 	};
-    struct doca_flow_fwd fwd_vf = {
+    struct doca_flow_fwd from_vf_fwd = {
         .type = DOCA_FLOW_FWD_PIPE,
         .next_pipe = encap_pipe,
     };
+
     res = doca_flow_pipe_control_add_entry(
-        0, priority_vf_to_uplink, pipe, &match_vf, &match_vf_mask, NULL, NULL, NULL, NULL, &fwd_vf, NULL,
+        0, priority_vf_to_uplink, ctrl_pipe, &from_vf_match, &from_vf_match_mask, 
+		NULL, NULL, NULL, &monitor_count, &from_vf_fwd, NULL,
+		&entry);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
+			cfg.attr.name, res, doca_error_get_descr(res));
+	}
+	entry_list[n_entries++] = entry;
+
+	from_vf_match.outer.eth.type = RTE_BE16(RTE_ETHER_TYPE_ARP);
+	from_vf_fwd.type = DOCA_FLOW_FWD_PIPE;
+	from_vf_fwd.next_pipe = rss_pipe;
+    res = doca_flow_pipe_control_add_entry(
+        0, priority_vf_to_uplink, ctrl_pipe, &from_vf_match, &from_vf_match_mask, 
+		NULL, NULL, NULL, &monitor_count, &from_vf_fwd, NULL,
+		&entry);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
+			cfg.attr.name, res, doca_error_get_descr(res));
+	}
+	entry_list[n_entries++] = entry;
+
+	entry_list[n_entries++] = NULL;
+
+	// Non-tunneled IPv6 from the uplink will by default go to the kernel
+	// due to running in Isolated Mode
+
+	return entry_list;
+}
+
+struct doca_flow_pipe_entry*
+create_arp_response_pipe(
+	struct doca_flow_port *port,
+	uint32_t arp_response_meta_flag)
+{
+	doca_error_t res;
+	struct doca_flow_pipe *pipe;
+    struct doca_flow_pipe_entry *entry = NULL;
+	int flags = DOCA_FLOW_NO_WAIT;
+	struct entries_status entries_status = {};
+
+	struct doca_flow_match arp_response_match_mask = {
+		.meta.pkt_meta = UINT32_MAX,
+		.outer.eth.type = UINT16_MAX,
+	};
+	struct doca_flow_match arp_response_match = {
+		.meta.pkt_meta = UINT32_MAX,
+		.outer.eth.type = RTE_BE16(RTE_ETHER_TYPE_ARP),
+	};
+
+    struct doca_flow_pipe_cfg cfg = {
+        .attr = {
+            .name = "ARP_RESPONSE",
+            .is_root = true,
+			.domain = DOCA_FLOW_PIPE_DOMAIN_EGRESS,
+        },
+        .port = port,
+		.match = &arp_response_match,
+		.match_mask = &arp_response_match_mask,
+		.monitor = &monitor_count,
+    };
+
+	struct doca_flow_fwd arp_response_fwd = {
+		.type = DOCA_FLOW_FWD_PORT,
+		.port_id = 1,
+	};
+
+	res = doca_flow_pipe_create(&cfg, &arp_response_fwd, NULL, &pipe);
+	if (res != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
+			cfg.attr.name, res, doca_error_get_descr(res));
+	}
+
+	arp_response_match.meta.pkt_meta = arp_response_meta_flag;
+	++entries_status.entries_in_queue;
+    res = doca_flow_pipe_add_entry(
+        0, pipe, &arp_response_match, NULL, NULL, NULL, flags, &entries_status,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
 			cfg.attr.name, res, doca_error_get_descr(res));
 	}
 
-	// ARP ether_type (0x806) will miss all control pipe entries, and be processed 
-	// by RSS (the default miss handler)
+	process_all_entries(cfg.attr.name, port, &entries_status, ENTRY_TIMEOUT_USEC);
 
-	return pipe;
+	return entry;
 }

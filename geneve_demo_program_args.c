@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include <doca_argp.h>
 #include <doca_log.h>
 #include <rte_ethdev.h>
@@ -41,4 +43,58 @@ geneve_demo_register_argp_params(void)
 	if (ret != DOCA_SUCCESS)
 		DOCA_LOG_ERR("Failed to register program param: %s", doca_error_get_descr(ret));
 	
+}
+
+int disable_dpdk_accept_args(
+	int argc, 
+	char *argv[], 
+	char *dpdk_argv[], 
+	char **pci_addr_arg, 
+	char **devarg)
+{
+	bool prev_arg_was_a = false; // indicates prev arg was -a followed by space
+
+	for (int i=0; i<argc; i++) {		
+		if (prev_arg_was_a) {
+			// This arg should be the PCI BDF.
+			// Save it as pci_addr_arg, then
+			// replace it with the null PCI address.
+			dpdk_argv[i] = strdup("00:00.0");
+			*pci_addr_arg = strdup(argv[i]);
+			prev_arg_was_a = false;
+			continue;
+		}
+
+		if (strncmp(argv[i], "-a", 2) != 0) {
+			// copy the non-"-a" args
+			dpdk_argv[i] = strdup(argv[i]);
+			continue;
+		}
+
+		if (strlen(argv[i]) == 2) {
+			// copy the "-a", next time around replace the arg
+			dpdk_argv[i] = strdup(argv[i]);
+			prev_arg_was_a = true;
+			continue;
+		}
+
+		// This arg is the PCI BDF.
+		// Save it as pci_addr_arg, then
+		// replace it with the null PCI address.
+		*pci_addr_arg = strdup(argv[i] + 2); // skip the -a prefix
+		dpdk_argv[i] = strdup("-a00:00.0");
+	}
+
+	if (!*pci_addr_arg) {
+		return -1;
+	}
+
+	char * comma = strchr(*pci_addr_arg, ',');
+	if (comma) {
+		*comma = '\0';
+		*devarg = comma + 1;
+	} else {
+		*devarg = NULL;
+	}
+	return argc;
 }

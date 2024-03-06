@@ -132,7 +132,7 @@ flow_init(
 {
 	struct doca_flow_cfg flow_cfg = {
 		.mode_args = "switch,hws,isolated",
-		.queues = config->dpdk_config.port_config.nb_queues,
+		.pipe_queues = config->dpdk_config.port_config.nb_queues,
 		.resource.nb_counters = 1024,
 		.cb = check_for_valid_entry,
 	};
@@ -184,6 +184,8 @@ struct doca_flow_header_format encap_pipe_action_outer_ipv4 = {
 		.dst_ip = UINT32_MAX,
 		.ttl = UINT8_MAX,
 	},
+	.l4_type_ext = DOCA_FLOW_L4_TYPE_EXT_UDP,
+	.udp.l4_port.dst_port = RTE_BE16(DOCA_FLOW_GENEVE_DEFAULT_PORT),
 };
 
 struct doca_flow_header_format encap_pipe_action_outer_ipv6 = {
@@ -197,6 +199,8 @@ struct doca_flow_header_format encap_pipe_action_outer_ipv6 = {
 		.dst_ip = IP6_MASK_ALL,
 		.hop_limit = UINT8_MAX,
 	},
+	.l4_type_ext = DOCA_FLOW_L4_TYPE_EXT_UDP,
+	.udp.l4_port.dst_port = RTE_BE16(DOCA_FLOW_GENEVE_DEFAULT_PORT),
 };
 
 struct doca_flow_pipe*
@@ -604,7 +608,7 @@ create_root_pipe(struct doca_flow_port *port,
     };
     res = doca_flow_pipe_control_add_entry(
         0, priority_uplink_to_vf, ctrl_pipe, &from_uplink_match, &from_uplink_match_mask, 
-		NULL, NULL, NULL, &monitor_count, &from_uplink_fwd, NULL,
+		NULL, NULL, NULL, NULL, &monitor_count, &from_uplink_fwd, NULL,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
@@ -629,7 +633,7 @@ create_root_pipe(struct doca_flow_port *port,
 
     res = doca_flow_pipe_control_add_entry(
         0, priority_vf_to_uplink, ctrl_pipe, &from_vf_match, &from_vf_match_mask, 
-		NULL, NULL, NULL, &monitor_count, &from_vf_fwd, NULL,
+		NULL, NULL, NULL, NULL, &monitor_count, &from_vf_fwd, NULL,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",
@@ -642,7 +646,7 @@ create_root_pipe(struct doca_flow_port *port,
 	from_vf_fwd.next_pipe = rss_pipe;
     res = doca_flow_pipe_control_add_entry(
         0, priority_vf_to_uplink, ctrl_pipe, &from_vf_match, &from_vf_match_mask, 
-		NULL, NULL, NULL, &monitor_count, &from_vf_fwd, NULL,
+		NULL, NULL, NULL, NULL, &monitor_count, &from_vf_fwd, NULL,
 		&entry);
 	if (res != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to add Pipe Entry %s: %d (%s)\n",

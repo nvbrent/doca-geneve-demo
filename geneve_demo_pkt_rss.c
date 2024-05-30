@@ -166,7 +166,7 @@ handle_icmp6(
             response_ipv6_hdr->vtc_flow = RTE_BE32(0x6 << 28);
             response_ipv6_hdr->payload_len = RTE_BE16(sizeof(struct icmp6_neighbor_adv_hdr) + 8);
             response_ipv6_hdr->hop_limits = 100;
-            response_ipv6_hdr->proto = DOCA_PROTO_ICMP6;
+            response_ipv6_hdr->proto = DOCA_FLOW_PROTO_ICMP6;
 
             struct icmp6_neighbor_adv_hdr *response_icmp6_hdr = (void*)&response_ipv6_hdr[1];
             response_icmp6_hdr->base.type = ICMP6_NEIGHBOR_ADVERTISEMENT;
@@ -211,7 +211,7 @@ handle_ipv6(
     inet_ntop(AF_INET6, &request_ip_hdr->src_addr, src_ip, INET6_ADDRSTRLEN);
     inet_ntop(AF_INET6, &request_ip_hdr->dst_addr, dst_ip, INET6_ADDRSTRLEN);
     DOCA_LOG_INFO("IPv6 proto: %d, %s -> %s", request_ip_hdr->proto, src_ip, dst_ip);
-    if (request_ip_hdr->proto == DOCA_PROTO_ICMP6 && config->enable_uplink_icmp_handling) {
+    if (request_ip_hdr->proto == DOCA_FLOW_PROTO_ICMP6 && config->enable_uplink_icmp_handling) {
         return handle_icmp6(config, port_id, queue_id, packet);
     }
     return 0;

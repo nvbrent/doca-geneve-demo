@@ -276,6 +276,10 @@ main(int argc, char **argv)
 		NULL,
 	};
 
+	if (!rss_pipe || !decap_pipe || !encap_pipe || !root_pipe_entry_list[0] || !arp_response_entry_list[0]) {
+		rte_exit(EXIT_FAILURE, "Failed to init doca flow\n");
+	}
+
 	load_vnet_conf_sessions(&config, session_ht, encap_pipe, decap_pipe);
 	
 	uint32_t lcore_id;

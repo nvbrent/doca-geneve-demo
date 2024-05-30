@@ -432,7 +432,7 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_dir_info(pipe_cfg, DOCA_FLOW_DIRECTION_NETWORK_TO_HOST));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1024));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, NULL));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_arr, NULL, NULL, 1));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_arr, actions_arr, NULL, 1));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_monitor(pipe_cfg, &monitor_count));
 	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd, NULL, &pipe));
 	if (pipe_cfg) {
@@ -487,8 +487,8 @@ create_decap_entry(
 			.eth.type = RTE_BE16(inner_addr_fam==AF_INET ? RTE_ETHER_TYPE_IPV4 : RTE_ETHER_TYPE_IPV6),
 		},
 	};
-	memcpy(actions.outer.eth.dst_mac, session->decap_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
-	struct rte_ether_addr* p_decap_src_mac = (struct rte_ether_addr*)actions.outer.eth.src_mac;
+	memcpy(actions.decap_cfg.eth.dst_mac, session->decap_dmac.addr_bytes, RTE_ETHER_ADDR_LEN);
+	struct rte_ether_addr* p_decap_src_mac = (struct rte_ether_addr*)actions.decap_cfg.eth.src_mac;
 	rte_eth_macaddr_get(session->vf_port_id, p_decap_src_mac);
 	
 	if (doca_log_level_get_global_lower_limit() >= DOCA_LOG_LEVEL_INFO) {

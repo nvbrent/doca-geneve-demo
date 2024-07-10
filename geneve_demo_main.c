@@ -120,13 +120,13 @@ static int64_t show_counters(
 
 	while (rte_hash_iterate(session_ht, (const void**)&session_id, (void**)&session, &session_itr) >= 0) {
 		doca_error_t res;
-		struct doca_flow_query flow_stats = {};
+		struct doca_flow_resource_query flow_stats = {};
 		
-		res = doca_flow_query_entry(session->encap_entry, &flow_stats);
-		int64_t encap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		res = doca_flow_resource_query_entry(session->encap_entry, &flow_stats);
+		int64_t encap_hits = (res==DOCA_SUCCESS) ? flow_stats.counter.total_pkts : -1;
 		
-		res = doca_flow_query_entry(session->decap_entry, &flow_stats);
-		int64_t decap_hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		res = doca_flow_resource_query_entry(session->decap_entry, &flow_stats);
+		int64_t decap_hits = (res==DOCA_SUCCESS) ? flow_stats.counter.total_pkts : -1;
 		
 		if (display && (encap_hits || decap_hits))
 			DOCA_LOG_INFO("Session %ld encap: %ld hits, decap: %ld hits", 
@@ -147,10 +147,10 @@ static int64_t show_entry_list_counters(
 
 	for (int entry_idx = 0; entry_list[entry_idx] != NULL; entry_idx++) {
 		doca_error_t res;
-		struct doca_flow_query flow_stats = {};
+		struct doca_flow_resource_query flow_stats = {};
 		
-		res = doca_flow_query_entry(entry_list[entry_idx], &flow_stats);
-		int64_t hits = (res==DOCA_SUCCESS) ? flow_stats.total_pkts : -1;
+		res = doca_flow_resource_query_entry(entry_list[entry_idx], &flow_stats);
+		int64_t hits = (res==DOCA_SUCCESS) ? flow_stats.counter.total_pkts : -1;
 		
 		if (display && hits)
 			DOCA_LOG_INFO("%s entry[%d]: %ld hits", 

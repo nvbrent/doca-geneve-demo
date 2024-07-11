@@ -237,6 +237,7 @@ create_sampling_pipe(
 	struct doca_flow_port *port, 
 	uint32_t mirror_id, 
 	struct doca_flow_pipe *next_pipe,
+	struct doca_flow_pipe *miss_pipe,
 	struct doca_flow_pipe_entry **sampling_entry)
 {
 	struct doca_flow_match match = {
@@ -262,6 +263,10 @@ create_sampling_pipe(
 		.type = DOCA_FLOW_FWD_PIPE,
 		.next_pipe = next_pipe,
 	};
+	struct doca_flow_fwd fwd_miss = {
+		.type = DOCA_FLOW_FWD_PIPE,
+		.next_pipe = miss_pipe,
+	};
 
 	doca_error_t result = DOCA_SUCCESS;
 	struct doca_flow_pipe_cfg *pipe_cfg;
@@ -274,7 +279,7 @@ create_sampling_pipe(
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, &match_mask));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_monitor(pipe_cfg, &monitor_mirror));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_arr, actions_masks_arr, NULL, 1));
-	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd, &fwd, &pipe));
+	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd, &fwd_miss, &pipe));
 	if (pipe_cfg) {
 		doca_flow_pipe_cfg_destroy(pipe_cfg);
 	}

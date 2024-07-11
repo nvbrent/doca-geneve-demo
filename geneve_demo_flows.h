@@ -72,6 +72,7 @@ create_sampling_pipe(
 	struct doca_flow_port *port, 
 	uint32_t mirror_id, 
 	struct doca_flow_pipe *next_pipe,
+	struct doca_flow_pipe *miss_pipe,
 	struct doca_flow_pipe_entry **sampling_entry);
 
 struct doca_flow_pipe *

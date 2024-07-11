@@ -288,6 +288,7 @@ main(int argc, char **argv)
 		config.ports[config.uplink_port_id], // port for this pipe
 		config.mirror_id_ingress_to_rss, // mirror dest when sampled
 		decap_pipe, // dest after sampling
+		decap_pipe, // dest after not sampling
 		&sampling_entry_list[1]);
 	
 	struct doca_flow_pipe *egr_sampl_pipe = create_sampling_pipe(
@@ -297,6 +298,7 @@ main(int argc, char **argv)
 		config.ports[config.uplink_port_id], // port for this pipe
 		config.mirror_id_egress_to_rss, // mirror dest when sampled
 		fwd_to_uplink_pipe, // dest after sampling
+		fwd_to_uplink_pipe, // dest after not sampling
 		&sampling_entry_list[2]);
 
 	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(

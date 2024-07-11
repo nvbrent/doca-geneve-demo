@@ -65,7 +65,13 @@ create_arp_response_pipe(
 	uint32_t arp_response_meta_flag);
 
 struct doca_flow_pipe *
-create_sampling_pipe(uint32_t random_mask, uint32_t pkt_meta, struct doca_flow_port *port, uint32_t mirror_id, struct doca_flow_pipe *next_pipe,
+create_sampling_pipe(
+	enum doca_flow_pipe_domain domain,
+	uint32_t random_mask, 
+	uint32_t pkt_meta, 
+	struct doca_flow_port *port, 
+	uint32_t mirror_id, 
+	struct doca_flow_pipe *next_pipe,
 	struct doca_flow_pipe_entry **sampling_entry);
 
 struct doca_flow_pipe *

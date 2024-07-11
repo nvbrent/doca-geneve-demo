@@ -211,7 +211,8 @@ handle_ipv6(
     inet_ntop(AF_INET6, &request_ip_hdr->src_addr, src_ip, INET6_ADDRSTRLEN);
     inet_ntop(AF_INET6, &request_ip_hdr->dst_addr, dst_ip, INET6_ADDRSTRLEN);
     DOCA_LOG_INFO("IPv6 proto: %d, %s -> %s", request_ip_hdr->proto, src_ip, dst_ip);
-    rte_pktmbuf_dump(stdout, packet, packet->pkt_len);
+    // int dump_len = 0; // packet->pkt_len
+    // rte_pktmbuf_dump(stdout, packet, dump_len);
     if (request_ip_hdr->proto == DOCA_FLOW_PROTO_ICMP6 && config->enable_uplink_icmp_handling) {
         return handle_icmp6(config, port_id, queue_id, packet);
     }

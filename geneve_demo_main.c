@@ -181,7 +181,7 @@ main(int argc, char **argv)
 		.uplink_port_id = 0,
 		.mirror_id_ingress_to_rss = 1,
 		.mirror_id_egress_to_rss = 2,
-		.sample_mask = 0, //UINT32_MAX,
+		.sample_mask = UINT32_MAX, // disabled, by default
 		.vnet_config = &vnet_config,
 		.arp_response_meta_flag = 0x50, // any arbitrary non-zero value
 	};
@@ -280,7 +280,9 @@ main(int argc, char **argv)
 	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(
 		config.ports[config.uplink_port_id], 
 		&config);
+
 	struct doca_flow_pipe *ingr_sampl_pipe = create_sampling_pipe(
+		DOCA_FLOW_PIPE_DOMAIN_DEFAULT,
 		config.sample_mask, // log2(sample-rate)
 		SAMPLE_DIRECTION_INGRESS, // pkt_meta to assign
 		config.ports[config.uplink_port_id], // port for this pipe
@@ -289,12 +291,14 @@ main(int argc, char **argv)
 		&sampling_entry_list[1]);
 	
 	struct doca_flow_pipe *egr_sampl_pipe = create_sampling_pipe(
+		DOCA_FLOW_PIPE_DOMAIN_EGRESS,
 		config.sample_mask, // log2(sample-rate)
 		SAMPLE_DIRECTION_EGRESS, // pkt_meta to assign
 		config.ports[config.uplink_port_id], // port for this pipe
 		config.mirror_id_egress_to_rss, // mirror dest when sampled
 		fwd_to_uplink_pipe, // dest after sampling
 		&sampling_entry_list[2]);
+
 	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(
 		config.ports[config.uplink_port_id], 
 		egr_sampl_pipe, 

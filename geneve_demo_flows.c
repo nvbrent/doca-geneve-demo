@@ -206,7 +206,6 @@ create_fwd_to_port_pipe(struct doca_flow_port *port, uint32_t port_id, struct do
 	IF_SUCCESS(result, doca_flow_pipe_cfg_create(&pipe_cfg, doca_flow_port_switch_get(port)));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_domain(pipe_cfg, DOCA_FLOW_PIPE_DOMAIN_EGRESS));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_dir_info(pipe_cfg, DOCA_FLOW_DIRECTION_HOST_TO_NETWORK));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_monitor(pipe_cfg, &monitor_count));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, &match));
@@ -232,6 +231,7 @@ create_fwd_to_port_pipe(struct doca_flow_port *port, uint32_t port_id, struct do
 
 struct doca_flow_pipe *
 create_sampling_pipe(
+	enum doca_flow_pipe_domain domain,
 	uint32_t random_mask, 
 	uint32_t pkt_meta, 
 	struct doca_flow_port *port, 
@@ -240,7 +240,7 @@ create_sampling_pipe(
 	struct doca_flow_pipe_entry **sampling_entry)
 {
 	struct doca_flow_match match = {
-		.parser_meta.random = 1,
+		.parser_meta.random = 0,
 	};
 	struct doca_flow_match match_mask = {
 		.parser_meta.random = random_mask,
@@ -263,16 +263,13 @@ create_sampling_pipe(
 		.next_pipe = next_pipe,
 	};
 
-	bool is_egress = pkt_meta == SAMPLE_DIRECTION_EGRESS;
-
 	doca_error_t result = DOCA_SUCCESS;
 	struct doca_flow_pipe_cfg *pipe_cfg;
 	struct doca_flow_pipe *pipe = NULL;
 	const char *pipe_name = "SAMPLING_PIPE";
 	IF_SUCCESS(result, doca_flow_pipe_cfg_create(&pipe_cfg, doca_flow_port_switch_get(port)));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_domain(pipe_cfg, is_egress ? DOCA_FLOW_PIPE_DOMAIN_EGRESS : DOCA_FLOW_PIPE_DOMAIN_DEFAULT));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_dir_info(pipe_cfg, is_egress ? DOCA_FLOW_DIRECTION_HOST_TO_NETWORK : DOCA_FLOW_DIRECTION_NETWORK_TO_HOST));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_domain(pipe_cfg, domain));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, &match_mask));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_monitor(pipe_cfg, &monitor_mirror));
@@ -393,7 +390,6 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct doca_flow_pipe *nex
 	IF_SUCCESS(result, doca_flow_pipe_cfg_create(&pipe_cfg, doca_flow_port_switch_get(port)));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_domain(pipe_cfg, DOCA_FLOW_PIPE_DOMAIN_EGRESS));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_dir_info(pipe_cfg, DOCA_FLOW_DIRECTION_HOST_TO_NETWORK));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1024));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, NULL));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_ptr_arr, NULL, NULL, 1));
@@ -553,7 +549,6 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	const char *pipe_name = "GENEVE_DECAP_PIPE";
 	IF_SUCCESS(result, doca_flow_pipe_cfg_create(&pipe_cfg, doca_flow_port_switch_get(port)));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_dir_info(pipe_cfg, DOCA_FLOW_DIRECTION_NETWORK_TO_HOST));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1024));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, NULL));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_arr, actions_arr, NULL, 1));
@@ -660,7 +655,6 @@ create_rss_pipe(
 	const char *pipe_name = "RSS_PIPE";
 	IF_SUCCESS(result, doca_flow_pipe_cfg_create(&pipe_cfg, doca_flow_port_switch_get(port)));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_is_root(pipe_cfg, true));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &null_match, &null_match));
 	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd_rss, NULL, &rss_pipe));

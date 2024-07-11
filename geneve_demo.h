@@ -40,26 +40,58 @@ enum sample_direction_indicator {
     SAMPLE_DIRECTION_INGRESS = 4321,
 };
 
+enum { max_num_pf = 8, max_vf_per_pf = 2 };
+
+struct flows_and_stats
+{
+	struct doca_flow_port *pf_port;
+
+	struct doca_flow_pipe_entry *sampling_entry_list[4];
+		
+	struct doca_flow_pipe *rss_pipe;
+	struct doca_flow_pipe *fwd_to_uplink_pipe;
+
+	struct doca_flow_pipe *decap_pipe;
+
+	struct doca_flow_pipe *ingr_sampl_pipe;
+		
+	struct doca_flow_pipe *egr_sampl_pipe;
+
+	struct doca_flow_pipe *encap_pipe;
+
+	struct doca_flow_pipe_entry **root_pipe_entry_list;
+
+	struct doca_flow_pipe_entry *arp_response_entry_list[2];
+
+	int64_t prev_root_pipe_total_count;
+	int64_t prev_arp_resp_pipe_total_count;
+	int64_t prev_sampling_total_count;
+};
+
 struct geneve_demo_config
 {
 	struct application_dpdk_config dpdk_config;
 
-	struct doca_flow_port **ports;
+    uint32_t num_pfs;
 
-    uint32_t mirror_id_ingress_to_rss;
-    uint32_t mirror_id_egress_to_rss;
+	struct doca_flow_port *ports[max_num_pf * max_vf_per_pf];
+	bool port_is_pf[max_num_pf * max_vf_per_pf]; // TODO: fill this out
+    struct doca_dev *pf_dev[max_num_pf * max_vf_per_pf];
+
+    uint32_t mirror_id_ingress_to_rss[max_num_pf];
+    uint32_t mirror_id_egress_to_rss[max_num_pf];
     uint32_t sample_mask; // 0 for 1:1 sampling, UINT32_MAX to disable
     
     const char *vnet_config_file;
 
-    uint16_t uplink_port_id; // always 0
-
 	struct vnet_config_t *vnet_config;
-    const struct vnet_host_t *self;
+    const struct vnet_host_t *self[max_num_pf];
 
     uint32_t arp_response_meta_flag;
 
     bool enable_uplink_icmp_handling;
+
+    struct flows_and_stats flows[max_num_pf];
 };
 
 typedef uint64_t session_id_t;
@@ -67,6 +99,7 @@ typedef uint64_t session_id_t;
 struct session_def
 {
     session_id_t session_id;
+    uint16_t pf_port_id;
     uint16_t vf_port_id;
     uint16_t vnet_id_ingress;
     uint16_t vnet_id_egress;
@@ -106,8 +139,7 @@ int disable_dpdk_accept_args(
 	int argc, 
 	char *argv[], 
 	char *dpdk_argv[], 
-	char **pci_addr_arg, 
-	char **devarg);
+	char *pci_addr_arg[max_num_pf]);
 
 void geneve_demo_register_argp_params(void);
 
@@ -115,6 +147,7 @@ struct rte_hash;
 
 int load_vnet_conf_sessions(
     struct geneve_demo_config *demo_config,
+    uint32_t port_id,
     struct rte_hash *session_ht,
 	struct doca_flow_pipe *encap_pipe, 
 	struct doca_flow_pipe *decap_pipe);

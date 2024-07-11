@@ -113,9 +113,6 @@ handle_icmp6(
     uint16_t queue_id, 
     const struct rte_mbuf *request_pkt)
 {
-    if (port_id != 0) {
-        return 0;
-    }
 	const struct rte_ether_hdr *request_eth_hdr = rte_pktmbuf_mtod(request_pkt, struct rte_ether_hdr *);
     const struct rte_ipv6_hdr *request_ip_hdr = (const void*)&request_eth_hdr[1];
     const struct rte_icmp_base_hdr *request_icmp_hdr = (const void*)(const char*)&request_ip_hdr[1];
@@ -134,8 +131,8 @@ handle_icmp6(
         inet_ntop(AF_INET6, request_sol_hdr->tgt_addr, dst_ip, INET6_ADDRSTRLEN);
         DOCA_LOG_INFO("ICMP6: Neighbor solicitation: %s", dst_ip);
         
-        for (int i=0; i<config->self->num_nics; i++) {
-            const struct nic_t *my_nic = &config->self->nics[i];
+        for (int i=0; i<config->self[port_id]->num_nics; i++) {
+            const struct nic_t *my_nic = &config->self[port_id]->nics[i];
             const ipv6_addr_t *my_ip = &my_nic->ip.ipv6;
             if (memcmp(my_ip, request_sol_hdr->tgt_addr, sizeof(ipv6_addr_t)) != 0) {
                 continue;
@@ -193,7 +190,6 @@ handle_icmp6(
             DOCA_LOG_INFO("Sent ICMP6 Neighbor advertisement in response");
         }
     }
-
     return 0;
 }
 

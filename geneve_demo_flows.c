@@ -161,8 +161,7 @@ doca_error_t configure_mirror(uint32_t mirror_id, enum doca_flow_pipe_domain dom
 
 int
 flow_init(
-	struct geneve_demo_config *config,
-	struct doca_dev *pf_dev)
+	struct geneve_demo_config *config)
 {
 	doca_error_t result = DOCA_SUCCESS;
 	struct doca_flow_cfg *flow_cfg;
@@ -171,7 +170,7 @@ flow_init(
 	IF_SUCCESS(result, doca_flow_cfg_set_nr_counters(flow_cfg, 1024));
 	IF_SUCCESS(result, doca_flow_cfg_set_mode_args(flow_cfg, "switch,hws,isolated"));
 	IF_SUCCESS(result, doca_flow_cfg_set_cb_entry_process(flow_cfg, check_for_valid_entry));
-	IF_SUCCESS(result, doca_flow_cfg_set_nr_shared_resource(flow_cfg, 10, DOCA_FLOW_SHARED_RESOURCE_MIRROR));
+	IF_SUCCESS(result, doca_flow_cfg_set_nr_shared_resource(flow_cfg, 2 * max_num_pf + 1, DOCA_FLOW_SHARED_RESOURCE_MIRROR));
 	IF_SUCCESS(result, doca_flow_init(flow_cfg));
 	if (flow_cfg) {
 		doca_flow_cfg_destroy(flow_cfg);
@@ -181,8 +180,7 @@ flow_init(
 		DOCA_LOG_DBG("DOCA Flow init done");
 
 		for (uint16_t port_id = 0; port_id < config->dpdk_config.port_config.nb_ports; port_id++) {
-			config->ports[port_id] = port_init(port_id,
-				port_id==0 ? pf_dev : NULL);
+			config->ports[port_id] = port_init(port_id, config->pf_dev[port_id]);
 			
 			if (!config->ports[port_id]) {
 				return -1;
@@ -489,7 +487,7 @@ create_encap_entry(
 	doca_error_t result = DOCA_SUCCESS;
 	IF_SUCCESS(result, doca_flow_pipe_add_entry(
 		pipe_queue, encap_pipe, &match, &actions, NULL, NULL, flags, &entries_status, &entry));
-	IF_SUCCESS(result, process_all_entries("ENCAP", config->ports[config->uplink_port_id], &entries_status, ENTRY_TIMEOUT_USEC));
+	IF_SUCCESS(result, process_all_entries("ENCAP", config->ports[session->pf_port_id], &entries_status, ENTRY_TIMEOUT_USEC));
 
 	return entry;
 }
@@ -637,7 +635,7 @@ create_decap_entry(
 	doca_error_t result = DOCA_SUCCESS;
 	IF_SUCCESS(result, doca_flow_pipe_add_entry(
 		pipe_queue, decap_pipe, &match, &actions, NULL, &fwd, flags, &entries_status, &entry));
-	IF_SUCCESS(result, process_all_entries("DECAP", config->ports[config->uplink_port_id], &entries_status, ENTRY_TIMEOUT_USEC));
+	IF_SUCCESS(result, process_all_entries("DECAP", config->ports[session->pf_port_id], &entries_status, ENTRY_TIMEOUT_USEC));
 	return entry;
 }
 

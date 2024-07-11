@@ -179,6 +179,9 @@ main(int argc, char **argv)
 			},
 		},
 		.uplink_port_id = 0,
+		.mirror_id_ingress_to_rss = 1,
+		.mirror_id_egress_to_rss = 2,
+		.sample_mask = 0, //UINT32_MAX,
 		.vnet_config = &vnet_config,
 		.arp_response_meta_flag = 0x50, // any arbitrary non-zero value
 	};
@@ -266,17 +269,55 @@ main(int argc, char **argv)
 	// 		config.uplink_port_id, res, doca_error_get_descr(res));
 
 	struct doca_flow_pipe *rss_pipe = create_rss_pipe(config.ports[config.uplink_port_id]);
-	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(config.ports[config.uplink_port_id], &config);
-	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(config.ports[config.uplink_port_id], &config);
-	struct doca_flow_pipe_entry **root_pipe_entry_list =
-		create_root_pipe(config.ports[config.uplink_port_id], decap_pipe, encap_pipe, rss_pipe, &config);
+	struct doca_flow_pipe *fwd_to_uplink_pipe = create_fwd_to_port_pipe(config.ports[config.uplink_port_id], config.uplink_port_id);
+
+	configure_mirror(config.mirror_id_ingress_to_rss, DOCA_FLOW_PIPE_DOMAIN_DEFAULT, rss_pipe, config.ports[config.uplink_port_id]);
+	configure_mirror(config.mirror_id_egress_to_rss, DOCA_FLOW_PIPE_DOMAIN_EGRESS, rss_pipe, config.ports[config.uplink_port_id]);
+
+	struct doca_flow_pipe_entry *sampling_entry_list[] = {NULL, NULL, NULL};
+
+	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(
+		config.ports[config.uplink_port_id], 
+		&config);
+	struct doca_flow_pipe *ingr_sampl_pipe = create_sampling_pipe(
+		config.sample_mask, // log2(sample-rate)
+		SAMPLE_DIRECTION_INGRESS, // pkt_meta to assign
+		config.ports[config.uplink_port_id], // port for this pipe
+		config.mirror_id_ingress_to_rss, // mirror dest when sampled
+		decap_pipe, // dest after sampling
+		&sampling_entry_list[0]);
+	
+	struct doca_flow_pipe *egr_sampl_pipe = create_sampling_pipe(
+		config.sample_mask, // log2(sample-rate)
+		SAMPLE_DIRECTION_EGRESS, // pkt_meta to assign
+		config.ports[config.uplink_port_id], // port for this pipe
+		config.mirror_id_egress_to_rss, // mirror dest when sampled
+		fwd_to_uplink_pipe, // dest after sampling
+		&sampling_entry_list[1]);
+	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(
+		config.ports[config.uplink_port_id], 
+		egr_sampl_pipe, 
+		&config);
+
+	struct doca_flow_pipe_entry **root_pipe_entry_list = create_root_pipe(
+		config.ports[config.uplink_port_id], 
+		ingr_sampl_pipe, 
+		encap_pipe, 
+		rss_pipe, 
+		&config);
 
 	struct doca_flow_pipe_entry *arp_response_entry_list[2] = {
 		create_arp_response_pipe(config.ports[config.uplink_port_id], config.arp_response_meta_flag),
 		NULL,
 	};
 
-	if (!rss_pipe || !decap_pipe || !encap_pipe || !root_pipe_entry_list[0] || !arp_response_entry_list[0]) {
+	if (!rss_pipe || 
+		!decap_pipe || 
+		!encap_pipe || 
+		!ingr_sampl_pipe ||
+		!egr_sampl_pipe ||
+		!root_pipe_entry_list[0] || 
+		!arp_response_entry_list[0]) {
 		rte_exit(EXIT_FAILURE, "Failed to init doca flow\n");
 	}
 
@@ -290,6 +331,7 @@ main(int argc, char **argv)
 	int64_t prev_total_count = -1;
 	int64_t prev_root_pipe_total_count = -1;
 	int64_t prev_arp_resp_pipe_total_count = -1;
+	int64_t prev_sampling_total_count = -1;
 	while (!force_quit) {
 		sleep(2);
 
@@ -303,6 +345,10 @@ main(int argc, char **argv)
 
 		if (show_entry_list_counters(NULL, arp_response_entry_list, &config, false) != prev_arp_resp_pipe_total_count) {
 			prev_arp_resp_pipe_total_count = show_entry_list_counters("ARP Resp pipe", arp_response_entry_list, &config, true);
+		}
+
+		if (show_entry_list_counters(NULL, sampling_entry_list, &config, false) != prev_sampling_total_count) {
+			prev_sampling_total_count = show_entry_list_counters("Sampling pipe", sampling_entry_list, &config, true);
 		}
 	}
 

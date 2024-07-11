@@ -211,6 +211,7 @@ handle_ipv6(
     inet_ntop(AF_INET6, &request_ip_hdr->src_addr, src_ip, INET6_ADDRSTRLEN);
     inet_ntop(AF_INET6, &request_ip_hdr->dst_addr, dst_ip, INET6_ADDRSTRLEN);
     DOCA_LOG_INFO("IPv6 proto: %d, %s -> %s", request_ip_hdr->proto, src_ip, dst_ip);
+    rte_pktmbuf_dump(stdout, packet, packet->pkt_len);
     if (request_ip_hdr->proto == DOCA_FLOW_PROTO_ICMP6 && config->enable_uplink_icmp_handling) {
         return handle_icmp6(config, port_id, queue_id, packet);
     }
@@ -234,20 +235,47 @@ handle_ipv4(
     return 0;
 }
 
+uint64_t ingress_sample_count;
+uint64_t egress_sample_count;
+
 static int
-handle_packet(
+handle_pkt_meta(
+    uint32_t pkt_meta,
     struct geneve_demo_config *config, 
     uint16_t port_id, 
     uint16_t queue_id, 
     const struct rte_mbuf *packet)
 {
+    const char *meta_name = "UNKNOWN";
+    uint64_t count = 0;
+    if (pkt_meta == SAMPLE_DIRECTION_INGRESS) {
+        meta_name = "INGRESS";
+        count = ++ingress_sample_count;
+    } else if (pkt_meta == SAMPLE_DIRECTION_EGRESS) {
+        meta_name = "EGRESS";
+        count = ++egress_sample_count;
+    }
+    DOCA_LOG_INFO("Pkt Meta: %d (%s), total: %ld, pkt length: %d", pkt_meta, meta_name, count, packet->pkt_len);
+    return 0;
+}
+
+static int
+handle_packet(
+    struct geneve_demo_config *config, 
+    uint16_t port_id, 
+    uint16_t queue_id, 
+    struct rte_mbuf *packet)
+{
+	uint32_t pkt_meta = rte_flow_dynf_metadata_get(packet);
 	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(packet, struct rte_ether_hdr *);
 	uint16_t ether_type = htons(eth_hdr->ether_type);
     if (ether_type > 1500 && ether_type != 0x88cc) { // ignore LLDP
         DOCA_LOG_INFO("Received ethertype 0x%x on port %d", ether_type, port_id);
     }
 
-    if (ether_type == RTE_ETHER_TYPE_ARP) {
+    if (pkt_meta != 0) {
+        handle_pkt_meta(pkt_meta, config, port_id, queue_id, packet);
+    } else if (ether_type == RTE_ETHER_TYPE_ARP) {
         handle_arp(config->dpdk_config.mbuf_pool, port_id, queue_id, packet, config->arp_response_meta_flag);
 	} else if (ether_type == RTE_ETHER_TYPE_IPV6) {
         handle_ipv6(config, port_id, queue_id, packet);
@@ -296,7 +324,7 @@ lcore_pkt_proc_func(void *lcore_args)
 
             rte_pktmbuf_free_bulk(rx_packets, nb_rx_packets);
 
-            if (true) {
+            if (false) {
                 double sec = (double)(rte_rdtsc() - t_start) * tsc_to_seconds;
                 printf("L-Core %d port %d: processed %d packets in %f seconds\n", 
                     lcore_id, port_id, nb_rx_packets, sec);

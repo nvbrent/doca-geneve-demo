@@ -194,7 +194,7 @@ flow_init(
 }
 
 struct doca_flow_pipe *
-create_fwd_to_port_pipe(struct doca_flow_port *port, uint32_t port_id)
+create_fwd_to_port_pipe(struct doca_flow_port *port, uint32_t port_id, struct doca_flow_pipe_entry **fwd_entry)
 {
 	struct doca_flow_match match = {};
 	struct doca_flow_fwd fwd = { .type = DOCA_FLOW_FWD_PORT, .port_id = port_id };
@@ -207,6 +207,7 @@ create_fwd_to_port_pipe(struct doca_flow_port *port, uint32_t port_id)
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_domain(pipe_cfg, DOCA_FLOW_PIPE_DOMAIN_EGRESS));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_dir_info(pipe_cfg, DOCA_FLOW_DIRECTION_HOST_TO_NETWORK));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_monitor(pipe_cfg, &monitor_count));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, &match));
 	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd, NULL, &pipe));
@@ -222,9 +223,8 @@ create_fwd_to_port_pipe(struct doca_flow_port *port, uint32_t port_id)
 	int pipe_queue = 0;
 	int flags = DOCA_FLOW_NO_WAIT;
 	++entries_status.entries_in_queue;
-	struct doca_flow_pipe_entry *entry = NULL;
 	IF_SUCCESS(result, doca_flow_pipe_add_entry(
-		pipe_queue, pipe, &match, NULL, NULL, &fwd, flags, &entries_status, &entry));
+		pipe_queue, pipe, &match, NULL, NULL, &fwd, flags, &entries_status, fwd_entry));
 	IF_SUCCESS(result, process_all_entries(pipe_name, doca_flow_port_switch_get(port), &entries_status, ENTRY_TIMEOUT_USEC));
 
 	return pipe;

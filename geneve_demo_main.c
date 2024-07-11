@@ -268,13 +268,14 @@ main(int argc, char **argv)
 	// 	rte_exit(EXIT_FAILURE, "Port %d: Failed to doca_flow_parser_geneve_opt_create(): %d (%s)\n",
 	// 		config.uplink_port_id, res, doca_error_get_descr(res));
 
+	struct doca_flow_pipe_entry *sampling_entry_list[] = {NULL, NULL, NULL, NULL};
+	
 	struct doca_flow_pipe *rss_pipe = create_rss_pipe(config.ports[config.uplink_port_id]);
-	struct doca_flow_pipe *fwd_to_uplink_pipe = create_fwd_to_port_pipe(config.ports[config.uplink_port_id], config.uplink_port_id);
+	struct doca_flow_pipe *fwd_to_uplink_pipe = create_fwd_to_port_pipe(config.ports[config.uplink_port_id], config.uplink_port_id, &sampling_entry_list[0]);
 
 	configure_mirror(config.mirror_id_ingress_to_rss, DOCA_FLOW_PIPE_DOMAIN_DEFAULT, rss_pipe, config.ports[config.uplink_port_id]);
 	configure_mirror(config.mirror_id_egress_to_rss, DOCA_FLOW_PIPE_DOMAIN_EGRESS, rss_pipe, config.ports[config.uplink_port_id]);
 
-	struct doca_flow_pipe_entry *sampling_entry_list[] = {NULL, NULL, NULL};
 
 	struct doca_flow_pipe *decap_pipe = create_decap_tunnel_pipe(
 		config.ports[config.uplink_port_id], 
@@ -285,7 +286,7 @@ main(int argc, char **argv)
 		config.ports[config.uplink_port_id], // port for this pipe
 		config.mirror_id_ingress_to_rss, // mirror dest when sampled
 		decap_pipe, // dest after sampling
-		&sampling_entry_list[0]);
+		&sampling_entry_list[1]);
 	
 	struct doca_flow_pipe *egr_sampl_pipe = create_sampling_pipe(
 		config.sample_mask, // log2(sample-rate)
@@ -293,7 +294,7 @@ main(int argc, char **argv)
 		config.ports[config.uplink_port_id], // port for this pipe
 		config.mirror_id_egress_to_rss, // mirror dest when sampled
 		fwd_to_uplink_pipe, // dest after sampling
-		&sampling_entry_list[1]);
+		&sampling_entry_list[2]);
 	struct doca_flow_pipe *encap_pipe = create_encap_tunnel_pipe(
 		config.ports[config.uplink_port_id], 
 		egr_sampl_pipe, 

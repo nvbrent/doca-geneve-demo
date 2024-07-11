@@ -69,6 +69,6 @@ create_sampling_pipe(uint32_t random_mask, uint32_t pkt_meta, struct doca_flow_p
 	struct doca_flow_pipe_entry **sampling_entry);
 
 struct doca_flow_pipe *
-create_fwd_to_port_pipe(struct doca_flow_port *port, uint32_t port_id);
+create_fwd_to_port_pipe(struct doca_flow_port *port, uint32_t port_id, struct doca_flow_pipe_entry **fwd_entry);
 
 doca_error_t configure_mirror(uint32_t mirror_id, enum doca_flow_pipe_domain domain, struct doca_flow_pipe *next_pipe, struct doca_flow_port *owner_port);

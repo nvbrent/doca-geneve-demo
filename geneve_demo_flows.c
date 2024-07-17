@@ -813,12 +813,12 @@ create_arp_response_pipe(
 	struct entries_status entries_status = {};
 
 	struct doca_flow_match arp_response_match_mask = {
-		//.meta.pkt_meta = UINT32_MAX,
-		//.outer.eth.type = UINT16_MAX,
+		.meta.pkt_meta = UINT32_MAX,
+		.outer.eth.type = UINT16_MAX,
 	};
 	struct doca_flow_match arp_response_match = {
-		//.meta.pkt_meta = UINT32_MAX,
-		//.outer.eth.type = RTE_BE16(RTE_ETHER_TYPE_ARP),
+		.meta.pkt_meta = UINT32_MAX,
+		.outer.eth.type = RTE_BE16(RTE_ETHER_TYPE_ARP),
 	};
 
 	struct doca_flow_fwd arp_response_fwd = {
@@ -844,7 +844,7 @@ create_arp_response_pipe(
 		return NULL;
 	}
 
-	//arp_response_match.meta.pkt_meta = arp_response_meta_flag;
+	arp_response_match.meta.pkt_meta = arp_response_meta_flag;
 	++entries_status.entries_in_queue;
     IF_SUCCESS(result, doca_flow_pipe_add_entry(
         0, pipe, &arp_response_match, NULL, NULL, NULL, flags, &entries_status,

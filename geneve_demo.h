@@ -80,7 +80,7 @@ struct geneve_demo_config
     uint32_t num_pfs;
 
 	struct doca_flow_port *ports[max_num_pf * max_vf_per_pf];
-	bool port_is_pf[max_num_pf * max_vf_per_pf]; // TODO: fill this out
+	bool port_is_pf[max_num_pf * max_vf_per_pf];
     struct doca_dev *pf_dev[max_num_pf * max_vf_per_pf];
 
     uint32_t mirror_id_ingress_to_rss[max_num_pf];
@@ -119,9 +119,6 @@ struct session_def
 
     union ip_addr virt_local_ip;
     union ip_addr virt_remote_ip;
-
-    crypto_key_t encrypt_key; // TODO: is it necessary to keep keys in memory?
-    crypto_key_t decrypt_key;
 
     struct doca_flow_pipe_entry *encap_entry;
     struct doca_flow_pipe_entry *decap_entry;

@@ -155,23 +155,22 @@ doca_error_t configure_mirror(uint32_t mirror_id, enum doca_flow_pipe_domain dom
 
 	doca_error_t result = DOCA_SUCCESS;
 	IF_SUCCESS(result, doca_flow_shared_resource_set_cfg(DOCA_FLOW_SHARED_RESOURCE_MIRROR, mirror_id, &res_cfg));
-	IF_SUCCESS(result, doca_flow_shared_resources_bind(DOCA_FLOW_SHARED_RESOURCE_MIRROR, &mirror_id, 1, owner_port));	
+	IF_SUCCESS(result, doca_flow_shared_resources_bind(DOCA_FLOW_SHARED_RESOURCE_MIRROR, &mirror_id, 1, owner_port));
 	return result;
 }
 
 int
 flow_init(
-	struct geneve_demo_config *config,
-	struct doca_dev *pf_dev)
+	struct geneve_demo_config *config)
 {
 	doca_error_t result = DOCA_SUCCESS;
 	struct doca_flow_cfg *flow_cfg;
 	IF_SUCCESS(result, doca_flow_cfg_create(&flow_cfg));
 	IF_SUCCESS(result, doca_flow_cfg_set_pipe_queues(flow_cfg, config->dpdk_config.port_config.nb_queues));
 	IF_SUCCESS(result, doca_flow_cfg_set_nr_counters(flow_cfg, 1024));
-	IF_SUCCESS(result, doca_flow_cfg_set_mode_args(flow_cfg, "switch,hws,isolated"));
+	IF_SUCCESS(result, doca_flow_cfg_set_mode_args(flow_cfg, "switch,hws,isolated,expert"));
 	IF_SUCCESS(result, doca_flow_cfg_set_cb_entry_process(flow_cfg, check_for_valid_entry));
-	IF_SUCCESS(result, doca_flow_cfg_set_nr_shared_resource(flow_cfg, 10, DOCA_FLOW_SHARED_RESOURCE_MIRROR));
+	IF_SUCCESS(result, doca_flow_cfg_set_nr_shared_resource(flow_cfg, 2 * max_num_pf + 1, DOCA_FLOW_SHARED_RESOURCE_MIRROR));
 	IF_SUCCESS(result, doca_flow_init(flow_cfg));
 	if (flow_cfg) {
 		doca_flow_cfg_destroy(flow_cfg);
@@ -181,8 +180,7 @@ flow_init(
 		DOCA_LOG_DBG("DOCA Flow init done");
 
 		for (uint16_t port_id = 0; port_id < config->dpdk_config.port_config.nb_ports; port_id++) {
-			config->ports[port_id] = port_init(port_id,
-				port_id==0 ? pf_dev : NULL);
+			config->ports[port_id] = port_init(port_id, config->pf_dev[port_id]);
 			
 			if (!config->ports[port_id]) {
 				return -1;
@@ -237,6 +235,7 @@ create_sampling_pipe(
 	struct doca_flow_port *port, 
 	uint32_t mirror_id, 
 	struct doca_flow_pipe *next_pipe,
+	struct doca_flow_pipe *miss_pipe,
 	struct doca_flow_pipe_entry **sampling_entry)
 {
 	struct doca_flow_match match = {
@@ -262,6 +261,10 @@ create_sampling_pipe(
 		.type = DOCA_FLOW_FWD_PIPE,
 		.next_pipe = next_pipe,
 	};
+	struct doca_flow_fwd fwd_miss = {
+		.type = DOCA_FLOW_FWD_PIPE,
+		.next_pipe = miss_pipe,
+	};
 
 	doca_error_t result = DOCA_SUCCESS;
 	struct doca_flow_pipe_cfg *pipe_cfg;
@@ -274,7 +277,7 @@ create_sampling_pipe(
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, &match_mask));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_monitor(pipe_cfg, &monitor_mirror));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_arr, actions_masks_arr, NULL, 1));
-	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd, &fwd, &pipe));
+	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd, &fwd_miss, &pipe));
 	if (pipe_cfg) {
 		doca_flow_pipe_cfg_destroy(pipe_cfg);
 	}
@@ -484,7 +487,7 @@ create_encap_entry(
 	doca_error_t result = DOCA_SUCCESS;
 	IF_SUCCESS(result, doca_flow_pipe_add_entry(
 		pipe_queue, encap_pipe, &match, &actions, NULL, NULL, flags, &entries_status, &entry));
-	IF_SUCCESS(result, process_all_entries("ENCAP", config->ports[config->uplink_port_id], &entries_status, ENTRY_TIMEOUT_USEC));
+	IF_SUCCESS(result, process_all_entries("ENCAP", config->ports[session->pf_port_id], &entries_status, ENTRY_TIMEOUT_USEC));
 
 	return entry;
 }
@@ -632,20 +635,28 @@ create_decap_entry(
 	doca_error_t result = DOCA_SUCCESS;
 	IF_SUCCESS(result, doca_flow_pipe_add_entry(
 		pipe_queue, decap_pipe, &match, &actions, NULL, &fwd, flags, &entries_status, &entry));
-	IF_SUCCESS(result, process_all_entries("DECAP", config->ports[config->uplink_port_id], &entries_status, ENTRY_TIMEOUT_USEC));
+	IF_SUCCESS(result, process_all_entries("DECAP", config->ports[session->pf_port_id], &entries_status, ENTRY_TIMEOUT_USEC));
 	return entry;
 }
 
 struct doca_flow_pipe*
 create_rss_pipe(
+	uint16_t nr_queues,
 	struct doca_flow_port *port)
 {
+	if (nr_queues > 255) {
+		DOCA_LOG_ERR("Unsupported number of rss queues: %d", nr_queues);
+	}
 	struct doca_flow_pipe *rss_pipe;
 	struct doca_flow_match null_match = {};
-	uint16_t rss_queues[1] = { 0 };
+	uint16_t rss_queues[nr_queues];
+	memset(rss_queues, 0, nr_queues * sizeof(uint16_t));
+	for (uint16_t i=0; i<nr_queues; i++) {
+		rss_queues[i] = i;
+	}
 	struct doca_flow_fwd fwd_rss = {
 		.type = DOCA_FLOW_FWD_RSS,
-		.num_of_queues = 1,
+		.num_of_queues = nr_queues,
 		.rss_queues = rss_queues,
 		.rss_outer_flags = DOCA_FLOW_RSS_IPV4 | DOCA_FLOW_RSS_IPV6,
 	};
@@ -662,20 +673,25 @@ create_rss_pipe(
 		doca_flow_pipe_cfg_destroy(pipe_cfg);
 	}
 
+	struct entries_status entries_status = {};
+	++entries_status.entries_in_queue;
     struct doca_flow_pipe_entry *entry = NULL;
 	IF_SUCCESS(result, doca_flow_pipe_add_entry(0, rss_pipe, &null_match, 
-		NULL, NULL, NULL, 0, NULL,
-		&entry));
+		NULL, NULL, NULL, 0, &entries_status, &entry));
+
+	process_all_entries(pipe_name, port, &entries_status, ENTRY_TIMEOUT_USEC);
 
 	return rss_pipe;
 }
 
 struct doca_flow_pipe_entry**
 create_root_pipe(struct doca_flow_port *port,
-    struct doca_flow_pipe *decap_pipe,
-    struct doca_flow_pipe *encap_pipe,
+	uint16_t uplink_port_id,
+	uint16_t vf_port_id,
+	struct doca_flow_pipe *decap_pipe,
+	struct doca_flow_pipe *encap_pipe,
 	struct doca_flow_pipe *rss_pipe,
-    struct geneve_demo_config *config)
+	struct geneve_demo_config *config)
 {
 	// NOTE: in Switch mode, we cannot create an explicit flow to send packets to target=kernel.
 	// (Target type kernel is not supported in switch mode)
@@ -703,7 +719,7 @@ create_root_pipe(struct doca_flow_port *port,
 
     struct doca_flow_match from_uplink_match_mask = {
         .parser_meta = {
-			.port_meta = 0,
+			.port_meta = PORT_META_ID_ANY,
 			.outer_l4_type = DOCA_FLOW_L4_META_UDP,
 		},
 		.outer = {
@@ -713,7 +729,7 @@ create_root_pipe(struct doca_flow_port *port,
     };
     struct doca_flow_match from_uplink_match = {
         .parser_meta = {
-			.port_meta = 0,
+			.port_meta = uplink_port_id,
 			.outer_l4_type = DOCA_FLOW_L4_META_UDP,
 		},
 		.outer = {
@@ -725,6 +741,7 @@ create_root_pipe(struct doca_flow_port *port,
         .type = DOCA_FLOW_FWD_PIPE,
         .next_pipe = decap_pipe,
     };
+	// Uplink Geneve -> decap pipe
     IF_SUCCESS(result, doca_flow_pipe_control_add_entry(
         0, priority_uplink_to_vf, ctrl_pipe, &from_uplink_match, &from_uplink_match_mask, 
 		NULL, NULL, NULL, NULL, &monitor_count, &from_uplink_fwd, NULL,
@@ -739,7 +756,7 @@ create_root_pipe(struct doca_flow_port *port,
 		.outer.eth.type = UINT16_MAX,
 	};
 	struct doca_flow_match from_vf_match = {
-		.parser_meta.port_meta = 1,
+		.parser_meta.port_meta = vf_port_id,
 		.outer.eth.type = RTE_BE16(inner_addr_fam==AF_INET ? DOCA_FLOW_ETHER_TYPE_IPV4 : DOCA_FLOW_ETHER_TYPE_IPV6),
 	};
     struct doca_flow_fwd from_vf_fwd = {
@@ -747,6 +764,7 @@ create_root_pipe(struct doca_flow_port *port,
         .next_pipe = encap_pipe,
     };
 
+	// VF ipv4/ipv6 -> encap pipe
     IF_SUCCESS(result, doca_flow_pipe_control_add_entry(
         0, priority_vf_to_uplink, ctrl_pipe, &from_vf_match, &from_vf_match_mask, 
 		NULL, NULL, NULL, NULL, &monitor_count, &from_vf_fwd, NULL,
@@ -757,13 +775,14 @@ create_root_pipe(struct doca_flow_port *port,
 	from_vf_match.outer.eth.type = RTE_BE16(RTE_ETHER_TYPE_ARP);
 	from_vf_fwd.type = DOCA_FLOW_FWD_PIPE;
 	from_vf_fwd.next_pipe = rss_pipe;
+	// VF ARP -> RSS pipe
     IF_SUCCESS(result, doca_flow_pipe_control_add_entry(
         0, priority_vf_to_uplink, ctrl_pipe, &from_vf_match, &from_vf_match_mask, 
 		NULL, NULL, NULL, NULL, &monitor_count, &from_vf_fwd, NULL,
 		&entry));
 	if (entry)
 		entry_list[n_entries++] = entry;
-	
+
 	if (n_entries != num_entries_expected) {
 		// indicate failure
 		entry_list[0] = NULL;
@@ -781,6 +800,7 @@ create_root_pipe(struct doca_flow_port *port,
 struct doca_flow_pipe_entry*
 create_arp_response_pipe(
 	struct doca_flow_port *port,
+	uint16_t port_id,
 	uint32_t arp_response_meta_flag)
 {
 	struct doca_flow_pipe *pipe;
@@ -799,7 +819,7 @@ create_arp_response_pipe(
 
 	struct doca_flow_fwd arp_response_fwd = {
 		.type = DOCA_FLOW_FWD_PORT,
-		.port_id = 1,
+		.port_id = port_id,
 	};
 
 	doca_error_t result = DOCA_SUCCESS;
@@ -815,6 +835,9 @@ create_arp_response_pipe(
 	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &arp_response_fwd, NULL, &pipe));
 	if (pipe_cfg) {
 		doca_flow_pipe_cfg_destroy(pipe_cfg);
+	}
+	if (result != DOCA_SUCCESS) {
+		return NULL;
 	}
 
 	arp_response_match.meta.pkt_meta = arp_response_meta_flag;

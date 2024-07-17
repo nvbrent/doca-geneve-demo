@@ -81,10 +81,10 @@ int disable_dpdk_accept_args(
 	int argc, 
 	char *argv[], 
 	char *dpdk_argv[], 
-	char **pci_addr_arg, 
-	char **devarg)
+	char *pci_addr_arg[max_num_pf])
 {
 	bool prev_arg_was_a = false; // indicates prev arg was -a followed by space
+	uint32_t num_pfs = 0;
 
 	for (int i=0; i<argc; i++) {		
 		if (prev_arg_was_a) {
@@ -92,7 +92,7 @@ int disable_dpdk_accept_args(
 			// Save it as pci_addr_arg, then
 			// replace it with the null PCI address.
 			dpdk_argv[i] = strdup("00:00.0");
-			*pci_addr_arg = strdup(argv[i]);
+			pci_addr_arg[num_pfs++] = strdup(argv[i]);
 			prev_arg_was_a = false;
 			continue;
 		}
@@ -113,20 +113,21 @@ int disable_dpdk_accept_args(
 		// This arg is the PCI BDF.
 		// Save it as pci_addr_arg, then
 		// replace it with the null PCI address.
-		*pci_addr_arg = strdup(argv[i] + 2); // skip the -a prefix
+		pci_addr_arg[num_pfs++] = strdup(argv[i] + 2); // skip the -a prefix
 		dpdk_argv[i] = strdup("-a00:00.0");
 	}
 
-	if (!*pci_addr_arg) {
-		return -1;
+	for (uint32_t i=0; i<num_pfs; i++) {
+		char * comma = strchr(pci_addr_arg[i], ',');
+		if (comma) {
+			*comma = '\0';
+		}
 	}
 
-	char * comma = strchr(*pci_addr_arg, ',');
-	if (comma) {
-		*comma = '\0';
-		*devarg = comma + 1;
-	} else {
-		*devarg = NULL;
+	DOCA_LOG_INFO("New argv:");
+	for (int i=0; i<argc; i++) {
+		DOCA_LOG_INFO("argv[%d] = %s", i, dpdk_argv[i]);
 	}
-	return argc;
+
+	return num_pfs;
 }

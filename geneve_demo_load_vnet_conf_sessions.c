@@ -11,11 +11,13 @@ DOCA_LOG_REGISTER(geneve_demo_vnet_conf_loader);
 
 struct vnet_flow_builder_config
 {
-    struct geneve_demo_config *demo_config;
-    struct rte_hash *session_ht;
+	uint16_t uplink_port_id;
+	uint16_t vf_port_id;
+	const struct vnet_host_t *self;
+	struct geneve_demo_config *demo_config;
+	struct rte_hash *session_ht;
 	struct doca_flow_pipe *encap_pipe; 
 	struct doca_flow_pipe *decap_pipe;
-    session_id_t next_session_id;
 };
 
 static const struct vnet_host_t *
@@ -115,7 +117,7 @@ static bool build_session(
     const char *local_vnic_name,
     const char *remote_vnic_name)
 {
-    const struct vnet_host_t *local_host = builder_config->demo_config->self;
+    const struct vnet_host_t *local_host = builder_config->self;
     const struct vnet_host_t *remote_host = find_phys_host_by_name(remote_host_name, builder_config->demo_config->vnet_config);
     if (!remote_host) {
         DOCA_LOG_ERR("Host %s: remote host not found", remote_host_name);
@@ -140,10 +142,10 @@ static bool build_session(
     
     struct session_def *session = calloc(1, sizeof(struct session_def));
 
-    uint16_t local_vf_index = local_vnic->vf_index; // TODO: bounds check
+    session->session_id = ++builder_config->demo_config->next_session_id;
+    session->pf_port_id = builder_config->uplink_port_id;
+    session->vf_port_id = builder_config->vf_port_id;
 
-    session->session_id = ++builder_config->next_session_id;
-    session->vf_port_id = local_vf_index + 1; // +1 to skip the PF index
     session->vnet_id_ingress = remote_vnic->vnet_id_out;
     session->vnet_id_egress = local_vnic->vnet_id_out;
 
@@ -186,19 +188,24 @@ static bool build_session(
 }
 
 int load_vnet_conf_sessions(
-    struct geneve_demo_config *demo_config,
-    struct rte_hash *session_ht,
+	struct geneve_demo_config *demo_config,
+	uint32_t uplink_port_id,
+	uint32_t vf_port_id,
+	struct rte_hash *session_ht,
 	struct doca_flow_pipe *encap_pipe, 
 	struct doca_flow_pipe *decap_pipe)
 {
+    demo_config->self[uplink_port_id] = find_self(uplink_port_id, demo_config->vnet_config);
+    
     struct vnet_flow_builder_config builder_config = {
+        .uplink_port_id = uplink_port_id,
+        .vf_port_id = vf_port_id,
+        .self = demo_config->self[uplink_port_id],
         .demo_config = demo_config,
         .session_ht = session_ht,
         .encap_pipe = encap_pipe,
         .decap_pipe = decap_pipe,
-        .next_session_id = 4000,
     };
-    demo_config->self = find_self(demo_config->uplink_port_id, demo_config->vnet_config);
 
     uint32_t total_sessions = 0;
     for (uint16_t i=0; i<demo_config->vnet_config->num_routes; i++) {
@@ -206,7 +213,7 @@ int load_vnet_conf_sessions(
         // check each end of the route
         for (int idx_local=0; idx_local<2; idx_local++) {
             const char *local_hostname = route->hostname[idx_local];
-            if (strcmp(local_hostname, demo_config->self->name) != 0)
+            if (strcmp(local_hostname, builder_config.self->name) != 0)
                 continue;
 
             int idx_remote = idx_local ^ 1;

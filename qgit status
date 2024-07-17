@@ -1,0 +1,417 @@
+[33mcommit 2afa7be683c12f56fee8c855b73b577c2d7d402d[m[33m ([m[1;36mHEAD -> [m[1;32mtmp[m[33m)[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Jul 17 16:55:34 2024 +0000
+
+    WIP: fix multi-PF functionality
+
+[33mcommit 09a05c054e21df375277630c82db2d19461bd74b[m[33m ([m[1;31morigin/multi_pf[m[33m, [m[1;32mmulti_pf[m[33m)[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jul 11 22:09:58 2024 +0000
+
+    Enable multiple PFs
+
+[33mcommit f1fa1f914675efc13c05cb020a68daa1db3928c4[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jul 11 20:24:18 2024 +0000
+
+    Make sampling-pipe miss configurable
+
+[33mcommit 387b00cc7de0d0057c8509ec3dd53f65ae12c1d7[m[33m ([m[1;31morigin/geneve_sampling[m[33m)[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jul 11 19:52:28 2024 +0000
+
+    Remove pipe_cfg dir_info
+
+[33mcommit c6cfa27d191cb462706c88b4e034e4381659f38b[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jul 11 16:20:54 2024 +0000
+
+    Add counter for fwd-to-uplink pipe
+
+[33mcommit a0b7f22218401b7ed4c40bd9c840a84305171cc5[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jul 11 16:11:55 2024 +0000
+
+    Add sampling of encapped packets, ingress and egress
+
+[33mcommit e685de797ea41d0f77f913fefb4cdc66781b7e2f[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Jul 10 20:35:44 2024 +0000
+
+    Update to latest flow query API
+
+[33mcommit cce0a3bd50abfba32b052e25d6463f6be85227e0[m[33m ([m[1;31morigin/doca-2.7[m[33m)[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu May 30 22:09:13 2024 +0000
+
+    Fix decap mac addresses
+
+[33mcommit 388c0a159ceab14847ba14466e7b38100c3f3659[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu May 30 22:00:37 2024 +0000
+
+    Resolve doca-2.7 upgrade issues
+
+[33mcommit be3f2b4a47078689448160a6719e18635385cb62[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu May 30 21:36:07 2024 +0000
+
+    Compile for doca-2.7
+
+[33mcommit b52c768396afc43d2659baae32c484bc9d69fc8d[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Mar 6 22:42:16 2024 +0200
+
+    Capture new mac addresses
+
+[33mcommit 887c3a1666489860e08c29b5dd6b32dbcd1bcb33[m[33m ([m[1;31morigin/doca-2.6[m[33m)[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Mar 6 16:51:13 2024 +0000
+
+    Update to doca 2.6
+
+[33mcommit 709ecaff61457c39b373d4ddf9e4b599b803e04b[m[33m ([m[1;31morigin/new_switch_model[m[33m)[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jan 25 21:59:55 2024 +0000
+
+    Transition to new switch model
+
+[33mcommit 73fccacc527f7666f2f898a59cbec0677a72ff53[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Mon Jan 15 16:13:40 2024 +0000
+
+    Set TTL
+
+[33mcommit f9a5ede021a039e817f3ec8f087b75c2b08bc680[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jan 11 22:56:51 2024 +0000
+
+    Add icmp6/NDP support
+
+[33mcommit fcf8614020949db916d28fe7f292de8bbd26a258[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jan 11 21:18:20 2024 +0000
+
+    Add gateway support
+
+[33mcommit bae1d0cf07e88a2884de3fa64cd4ed69bacb2189[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jan 11 22:37:20 2024 +0200
+
+    Update testbed config
+
+[33mcommit 6aedfdf34fac273370d6dd7eeef852da30ae9f23[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jan 11 22:33:49 2024 +0200
+
+    Update testbed config
+
+[33mcommit d08bed2bad2480dc9c27392f5cd4b720a3cd702d[m
+Merge: 9e9fcce e06721e
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jan 11 15:19:22 2024 +0000
+
+    Merge
+
+[33mcommit 9e9fcce7e88490e5adb418bf896633e1205acd2f[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jan 11 15:16:59 2024 +0000
+
+    Handle arp via RSS; ensure ICMP is encapped
+
+[33mcommit e06721ec60a9bf3447a7c4ef8dac46a71dcd272b[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Fri Dec 15 17:21:17 2023 +0200
+
+    Only print stats when they change
+
+[33mcommit 242af1dc37a990260e1aa4c63a88f3ac0a9fd574[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Fri Dec 15 17:21:06 2023 +0200
+
+    Capture testbed config file
+
+[33mcommit 518519d43f6ed1c4a1f51e83d27a35ee6d7240d7[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Dec 14 16:07:41 2023 +0000
+
+    Enable all-to-all in config file
+
+[33mcommit 94ee71bea4eefe9dea724a361b427d34d7c98db7[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Dec 14 15:34:19 2023 +0000
+
+    Refactor for readability
+
+[33mcommit 808e307465c35891b34ca4aab6c2c9155cb18089[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Dec 14 14:21:07 2023 +0000
+
+    Fix decap ether_type
+
+[33mcommit 6a4c49539f93bd2ae791e0bde73dbf5e6073b59a[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Dec 14 02:47:44 2023 +0000
+
+    Fix initialization of ip4/ip6 unions
+
+[33mcommit f2cdf57ccb81f776b09cb2e9e2c64d22f13ba94f[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Dec 14 01:54:46 2023 +0000
+
+    Fix local/remote bug (2)
+
+[33mcommit 3e1b8c919dbd921e8f3d111dcffaf80512ee985a[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Dec 14 01:47:30 2023 +0000
+
+    Fix local/remote bug
+
+[33mcommit 0ef33bbf1fd85c71b189e84433c758ca16fb1c0d[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Dec 14 01:36:27 2023 +0000
+
+    Update vnet_conf addresses
+
+[33mcommit 027bef323276fa10cd2238856f73fc6ac88c29c4[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Dec 14 01:35:07 2023 +0000
+
+    Fixes for arp/ping forwarding (5)
+
+[33mcommit b163ac6f3c38fc99ffe4dd48a3cc8e0043eb69e6[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Dec 13 23:18:11 2023 +0000
+
+    Fixes for arp/ping forwarding
+
+[33mcommit 9b5134a874cfbfd8140a0db993aa1745afe52f15[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Dec 13 23:05:31 2023 +0000
+
+    Fixes for arp/ping forwarding (3)
+
+[33mcommit d11f18b6275cd7234d1f6bb7801f08f596b05a3b[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Dec 13 22:56:33 2023 +0000
+
+    Fixes for arp/ping forwarding (2)
+
+[33mcommit 51ceeb36309b52a9219cca6436c02bc1aa5398a6[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Dec 13 22:41:46 2023 +0000
+
+    Fixes for arp/ping forwarding
+
+[33mcommit e301dcb1979a72cfb7fb68c038dcbe17c1c6b0e6[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Tue Dec 12 23:04:29 2023 +0000
+
+    Add ipv4 support
+
+[33mcommit 036acde79d1f50cf1189875382a9396e1bc558b9[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Tue Dec 12 15:43:15 2023 +0000
+
+    Update to DOCA 2.5 APIs
+
+[33mcommit b68005a83e7d3b028eefe0dd3cc86fdf68a32b6f[m
+Merge: d003f3c 680f728
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Tue Dec 12 15:42:30 2023 +0000
+
+    Update to DOCA 2.5 APIs
+
+[33mcommit 680f7289d6293a9eb333d1b7d760273ace4785da[m[33m ([m[1;31morigin/doca_2_5[m[33m)[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Nov 30 15:56:44 2023 +0000
+
+    Update to DOCA 2.5 APIs
+
+[33mcommit d003f3c82dfdbe237ae915af35fd576a95e5ab3a[m
+Merge: b0c31bf 6fa820d
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Tue Nov 28 15:37:07 2023 +0000
+
+    Upgrade to doca 2.2 APIs
+
+[33mcommit 6fa820d634895577f30e365f5310d7279067b347[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Mon Nov 27 16:53:22 2023 +0000
+
+    Upgrade to doca 2.2 APIs
+
+[33mcommit 2ceb60c38e0cc16d341906167eb18b06090b4226[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Oct 18 15:53:53 2023 +0000
+
+    Add entry processing
+
+[33mcommit b0c31bf82d142ac80470f37340b95947bc579ba5[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Oct 18 15:53:53 2023 +0000
+
+    Add entry processing
+
+[33mcommit 5f5fda7db243a85c3eb35206eadec312ce15291e[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Oct 12 15:32:20 2023 +0000
+
+    Move config to different server pair
+
+[33mcommit e4f515147c67c2268d69ca1e4b71fa7217904e35[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Fri Aug 18 15:58:45 2023 +0000
+
+    Revert change to debug settings
+
+[33mcommit 1fb28365a54dd183dc862e6d9967cafae83653e4[m
+Merge: 5e13c7b c0f3777
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Fri Aug 18 15:58:22 2023 +0000
+
+    Display session flow counters
+
+[33mcommit c0f3777b137132f3dbf618a69f2ad58e272dfd41[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Fri Aug 18 15:54:22 2023 +0000
+
+    Display session flow counters
+
+[33mcommit 5e13c7b80129c798fb3ed3cfda7bc6a232c999a2[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Aug 17 20:56:23 2023 +0000
+
+    Make vnet json filename configurable
+
+[33mcommit 2cf6026d2cf90753e384086c0b7a18d511d1b42e[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Aug 17 19:37:55 2023 +0000
+
+    Parse config json files
+
+[33mcommit d61e595aad3efb0ccde69704bded1ac1dedee3b4[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Aug 17 17:03:13 2023 +0000
+
+    Remove accidental symlink
+
+[33mcommit e19774f5dc98c07bcf533dd673f6c14d26aba5aa[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Mon Aug 14 20:22:09 2023 +0000
+
+    Implement new vnet conf loader
+
+[33mcommit 54b7fb88a19779b2b639d87f9ba086cbe146213f[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Mon Aug 14 18:05:53 2023 +0000
+
+    Log flow match/encap/decap details to the console
+
+[33mcommit 446efc8d6212a8ee067e2760769ad82b705bc6de[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Mon Aug 14 14:57:44 2023 +0000
+
+    WIP: update host/niv/vnic/route config rules
+
+[33mcommit 4b192a27016248bf793ffe13758b8a1f7811caa7[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Aug 10 15:16:32 2023 +0000
+
+    Fix decap mac address
+
+[33mcommit 8c4827eacff5e8d54a6a1b12a9202b595b58f39f[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Aug 10 14:35:26 2023 +0000
+
+    Fix VF index. Log flow details.
+
+[33mcommit 00f87a8d1de88dcbfe25e2878c9ebfb70304cac0[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Aug 9 21:44:41 2023 +0000
+
+    WIP: load vnet from config file
+
+[33mcommit 7382dd20717008ae1fb3977d010dc8fe5fbca6ab[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Aug 9 13:53:05 2023 +0000
+
+    Note common error msgs in readme
+
+[33mcommit e349483b0f949e7140a3531aeb7d897613ab6c2b[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Fri Aug 4 20:40:28 2023 +0000
+
+    WIP: configurable virtual dmac (currently only one dst)
+
+[33mcommit 9ff234d006d58e3495d65cde9b7ae559227355be[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Fri Aug 4 15:11:57 2023 +0000
+
+    Maintain hashtable of sessions
+
+[33mcommit 6a46bb5086c977d8eee8c3590d2b0edbbc4af67d[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Aug 3 22:18:05 2023 +0000
+
+    WIP: document arp TODOs
+
+[33mcommit 2d25b21b1fcb9627d749d4b6f02362be26a37051[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Aug 3 22:11:34 2023 +0000
+
+    WIP: fwd arp to uplink for now
+
+[33mcommit 84c906f461a87c25f5c265662aecc0a98c5c1581[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Aug 3 21:46:20 2023 +0000
+
+    Naming convention for source files
+
+[33mcommit b5816ce3cacec5460a3580ddc8d6e6591fdeb461[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Tue Aug 1 13:51:40 2023 +0000
+
+    Add Makefile example of static linking
+
+[33mcommit ece8b28deaeb9e30be8311bb2693a3f39df88de2[m[33m ([m[1;33mtag: demo01[m[33m)[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Fri Jul 28 19:51:35 2023 +0000
+
+    Add virt/phy ip addrs to session criteria
+
+[33mcommit a0e290484b20c83cf2007e15acfe9291736ae95b[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jul 27 21:23:28 2023 +0000
+
+    Support arbitrary number of VFs
+
+[33mcommit bbcfab0e6265bc39c5f475d8b01d60c7296ebc3e[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jul 27 19:49:46 2023 +0000
+
+    Revert to doca 2.0
+
+[33mcommit b77ed51d794b923a65563fee744e262fd1b8b764[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Thu Jul 27 14:44:19 2023 +0000
+
+    Add option for empty root pipe
+
+[33mcommit 9894b54d6c787fcba213b0ee5dfc311ed5dc64dc[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Jul 26 20:34:00 2023 +0000
+
+    Move flows to their own src file
+
+[33mcommit a3e594172af64a7625fb0db7b666fe04f358a4ae[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Wed Jul 26 20:25:41 2023 +0000
+
+    WIP. Move to doca 2.2. Organize source.
+
+[33mcommit 8c72ebf59582d74d67f24eff361b5a8e7d514f5c[m
+Author: Brent Schartung <bschartung@nvidia.com>
+Date:   Tue Jul 25 22:34:58 2023 +0000
+
+    WIP. Decap fails to populate eth_type.

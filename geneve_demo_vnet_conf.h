@@ -19,8 +19,6 @@
 // Not to be confused with the corresponding port representor.
 struct vnic_t
 {
-    uint16_t vf_index;
-    const char *name;
     struct rte_ether_addr mac_addr;
     union ip_addr ip;
     // The same VNET ID is applied to all outgoing flows on this interface
@@ -53,7 +51,7 @@ struct vnet_host_t
 struct route_t
 {
     const char *hostname[2];
-    const char *vnic_name[2];
+    union ip_addr vip[2];
 };
 
 // A configuration which describes all the physical hosts on

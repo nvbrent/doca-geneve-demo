@@ -11,7 +11,6 @@
                     "ip": "fe80::5aa2:e1ff:fea9:b67e",
                     "vnics": [
                         {
-                            "name": "enp64s0v0",
                             "mac": "96:10:04:a6:88:55",
                             "ip": "192.168.64.7",
                             "vnid-out": 647
@@ -24,7 +23,6 @@
                     "ip": "fe80::5aa2:e1ff:fea9:b676",
                     "vnics": [
                         {
-                            "name": "enp24s0v0",
                             "mac": "da:9c:47:16:95:6f",
                             "ip": "192.168.24.7",
                             "vnid-out": 247
@@ -42,7 +40,6 @@
                     "ip": "fe80::5aa2:e1ff:febb:df12",
                     "vnics": [
                         {
-                            "name": "enp64s0v0",
                             "mac": "ea:39:f6:01:e2:2c",
                             "ip": "192.168.64.8",
                             "vnid-out": 648
@@ -55,7 +52,6 @@
                     "ip": "fe80::5aa2:e1ff:febb:df0a",
                     "vnics": [
                         {
-                            "name": "enp24s0v0",
                             "mac": "46:f6:cc:4b:87:72",
                             "ip": "192.168.24.8",
                             "vnid-out": 248

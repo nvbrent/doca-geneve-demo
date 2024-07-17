@@ -11,16 +11,8 @@ DOCA_LOG_REGISTER(vnet_conf);
 
 static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic, int addr_fam)
 {
-    // parse index, name, mac, ip, pci, vnet_id
-    struct json_object *index_obj, *name_obj, *mac_obj, *ip_obj, *vni_obj;
-    if (json_object_object_get_ex(vnic_obj, "index", &index_obj) && json_object_is_type(index_obj, json_type_int)) {
-        vnic->vf_index = json_object_get_int(index_obj);
-    } // else, default to 0
-
-    if (!json_object_object_get_ex(vnic_obj, "name", &name_obj)) {
-        DOCA_LOG_ERR("NIC \"name\" required");
-        return DOCA_ERROR_INVALID_VALUE;
-    }
+    // parse name, mac, ip, pci, vnet_id
+    struct json_object *mac_obj, *ip_obj, *vni_obj;
     if (!json_object_object_get_ex(vnic_obj, "mac", &mac_obj)) {
         DOCA_LOG_ERR("NIC \"mac\" required");
         return DOCA_ERROR_INVALID_VALUE;
@@ -47,8 +39,6 @@ static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic
         return DOCA_ERROR_INVALID_VALUE;
     }
     vnic->vnet_id_out = json_object_get_int(vni_obj);
-
-    vnic->name = strdup(json_object_get_string(name_obj));
 
     return DOCA_SUCCESS;
 }
@@ -179,7 +169,7 @@ static doca_error_t parse_route(struct json_object *route_obj, struct route_t *r
             return DOCA_ERROR_INVALID_VALUE;
         }
         route->hostname[i] = strdup(json_object_get_string(endpt_host));
-        route->vnic_name[i] = strdup(json_object_get_string(endpt_vnic));
+        // TODO: route->vip[i] = parse IP addr based on inner_addr_fam
     }
 
     return DOCA_SUCCESS;
@@ -243,8 +233,8 @@ static doca_error_t configure_all_to_all_routes(struct vnet_config_t *config)
                             struct route_t *p_route = &config->routes[idx_route++];
                             p_route->hostname[0] = p_host1->name;
                             p_route->hostname[1] = p_host2->name;
-                            p_route->vnic_name[0] = p_nic1->vnics[vnic1].name;
-                            p_route->vnic_name[1] = p_nic2->vnics[vnic2].name;
+                            p_route->vip[0] = p_nic1->vnics[vnic1].ip;
+                            p_route->vip[1] = p_nic2->vnics[vnic2].ip;
                         }
                     }
                 }

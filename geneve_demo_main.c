@@ -138,6 +138,7 @@ static int64_t show_counters(
 }
 
 static int64_t show_entry_list_counters(
+	uint32_t pf_idx,
 	const char *entry_list_name,
 	struct doca_flow_pipe_entry **entry_list,
 	struct geneve_demo_config *config, 
@@ -153,8 +154,8 @@ static int64_t show_entry_list_counters(
 		int64_t hits = (res==DOCA_SUCCESS) ? flow_stats.counter.total_pkts : -1;
 		
 		if (display && hits)
-			DOCA_LOG_INFO("%s entry[%d]: %ld hits", 
-				entry_list_name, entry_idx, hits);
+			DOCA_LOG_INFO("PF%d: %s entry[%d]: %ld hits", 
+				pf_idx, entry_list_name, entry_idx, hits);
 		
 		total_hits += max64(0, hits);
 	}
@@ -194,6 +195,7 @@ main(int argc, char **argv)
 			},
 		},
 		.sample_mask = UINT32_MAX, // disabled, by default
+		.next_session_id = 4000,
 		.vnet_config = &vnet_config,
 		.arp_response_meta_flag = 0x50, // any arbitrary non-zero value
 	};
@@ -286,19 +288,22 @@ main(int argc, char **argv)
 	flow_init(&config);
 
 	for (uint16_t port_id = 0, pf_idx = 0; port_id < config.dpdk_config.port_config.nb_ports; port_id++) {
-		if (!config.port_is_pf[port_id]) {
-			continue; // pf_idx is not incremented
-		}
-		
-		DOCA_LOG_INFO("Creating flows for port_id %d", port_id);
-		
+		if (config.port_is_pf[port_id]) {
+			struct flows_and_stats *flows = &config.flows[pf_idx];
+			*flows = default_flows_and_stats;
+			flows->uplink_port_id = port_id;
+			flows->vf_port_id = port_id + 1;
+			flows->pf_port = config.ports[flows->uplink_port_id];
+			++pf_idx;
+		} // else, pf_idx not incremented
+	}
+
+	for (uint16_t pf_idx = 0; pf_idx < config.num_pfs; pf_idx++) {
 		struct flows_and_stats *flows = &config.flows[pf_idx];
-		*flows = default_flows_and_stats;
+		DOCA_LOG_INFO("Creating flows for port_id %d", flows->uplink_port_id);
 
-		flows->pf_port = config.ports[port_id];
-
-		flows->rss_pipe = create_rss_pipe(flows->pf_port);
-		flows->fwd_to_uplink_pipe = create_fwd_to_port_pipe(flows->pf_port, port_id, &flows->sampling_entry_list[0]);
+		flows->rss_pipe = create_rss_pipe(config.dpdk_config.port_config.nb_queues, flows->pf_port);
+		flows->fwd_to_uplink_pipe = create_fwd_to_port_pipe(flows->pf_port, flows->uplink_port_id, &flows->sampling_entry_list[0]);
 
 		configure_mirror(config.mirror_id_ingress_to_rss[pf_idx], DOCA_FLOW_PIPE_DOMAIN_DEFAULT, flows->rss_pipe, flows->pf_port);
 		configure_mirror(config.mirror_id_egress_to_rss[pf_idx], DOCA_FLOW_PIPE_DOMAIN_EGRESS, flows->rss_pipe, flows->pf_port);
@@ -334,12 +339,17 @@ main(int argc, char **argv)
 
 		flows->root_pipe_entry_list = create_root_pipe(
 			flows->pf_port, 
+			flows->uplink_port_id,
+			flows->vf_port_id,
 			flows->ingr_sampl_pipe, 
 			flows->encap_pipe, 
 			flows->rss_pipe, 
 			&config);
 
-		flows->arp_response_entry_list[0] = create_arp_response_pipe(flows->pf_port, config.arp_response_meta_flag);
+		flows->arp_response_entry_list[0] = create_arp_response_pipe(
+			flows->pf_port, 
+			flows->vf_port_id,
+			config.arp_response_meta_flag);
 
 		if (!flows->rss_pipe || 
 			!flows->decap_pipe || 
@@ -348,12 +358,16 @@ main(int argc, char **argv)
 			!flows->egr_sampl_pipe ||
 			!flows->root_pipe_entry_list[0] || 
 			!flows->arp_response_entry_list[0]) {
-			rte_exit(EXIT_FAILURE, "Failed to init doca flow for port_id %d\n", port_id);
+			rte_exit(EXIT_FAILURE, "Failed to init doca flow for port_id %d\n", flows->uplink_port_id);
 		}
 		
-		load_vnet_conf_sessions(&config, port_id, session_ht, flows->encap_pipe, flows->decap_pipe);
-
-		++pf_idx;
+		load_vnet_conf_sessions(
+			&config, 
+			flows->uplink_port_id, 
+			flows->vf_port_id, 
+			session_ht, 
+			flows->encap_pipe, 
+			flows->decap_pipe);
 	}
 	
 	uint32_t lcore_id;
@@ -372,16 +386,16 @@ main(int argc, char **argv)
 
 		for (uint32_t pf_idx=0; pf_idx < config.num_pfs; pf_idx++) {
 			struct flows_and_stats *flows = &config.flows[pf_idx];
-			if (show_entry_list_counters(NULL, flows->root_pipe_entry_list, &config, false) != flows->prev_root_pipe_total_count) {
-				flows->prev_root_pipe_total_count = show_entry_list_counters("Root pipe", flows->root_pipe_entry_list, &config, true);
+			if (show_entry_list_counters(pf_idx, NULL, flows->root_pipe_entry_list, &config, false) != flows->prev_root_pipe_total_count) {
+				flows->prev_root_pipe_total_count = show_entry_list_counters(pf_idx, "Root pipe", flows->root_pipe_entry_list, &config, true);
 			}
 
-			if (show_entry_list_counters(NULL, flows->arp_response_entry_list, &config, false) != flows->prev_arp_resp_pipe_total_count) {
-				flows->prev_arp_resp_pipe_total_count = show_entry_list_counters("ARP Resp pipe", flows->arp_response_entry_list, &config, true);
+			if (show_entry_list_counters(pf_idx, NULL, flows->arp_response_entry_list, &config, false) != flows->prev_arp_resp_pipe_total_count) {
+				flows->prev_arp_resp_pipe_total_count = show_entry_list_counters(pf_idx, "ARP Resp pipe", flows->arp_response_entry_list, &config, true);
 			}
 
-			if (show_entry_list_counters(NULL, flows->sampling_entry_list, &config, false) != flows->prev_sampling_total_count) {
-				flows->prev_sampling_total_count = show_entry_list_counters("Sampling pipe", flows->sampling_entry_list, &config, true);
+			if (show_entry_list_counters(pf_idx, NULL, flows->sampling_entry_list, &config, false) != flows->prev_sampling_total_count) {
+				flows->prev_sampling_total_count = show_entry_list_counters(pf_idx, "Sampling pipe", flows->sampling_entry_list, &config, true);
 			}
 		}
 	}

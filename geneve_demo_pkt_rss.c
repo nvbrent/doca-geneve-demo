@@ -22,6 +22,8 @@
 
 DOCA_LOG_REGISTER(GENEVE_RSS);
 
+struct rte_ether_addr dummy_mac_addr = { { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 } };
+
 static int
 handle_arp(
     struct rte_mempool *mpool, 
@@ -56,6 +58,7 @@ handle_arp(
     struct rte_arp_hdr *response_arp_hdr = (void*)&response_eth_hdr[1];
 
     rte_eth_macaddr_get(port_id, &response_eth_hdr->src_addr);
+    response_eth_hdr->src_addr = dummy_mac_addr;
     response_eth_hdr->dst_addr = request_eth_hdr->src_addr;
     response_eth_hdr->ether_type = RTE_BE16(RTE_ETHER_TYPE_ARP);
 
@@ -65,6 +68,7 @@ handle_arp(
     response_arp_hdr->arp_plen = sizeof(uint32_t);
     response_arp_hdr->arp_opcode = RTE_BE16(RTE_ARP_OP_REPLY);
     rte_eth_macaddr_get(port_id, &response_arp_hdr->arp_data.arp_sha);
+    response_arp_hdr->arp_data.arp_sha = dummy_mac_addr;
     response_arp_hdr->arp_data.arp_tha = request_arp_hdr->arp_data.arp_sha;
     response_arp_hdr->arp_data.arp_sip = request_arp_hdr->arp_data.arp_tip;
     response_arp_hdr->arp_data.arp_tip = request_arp_hdr->arp_data.arp_sip;
@@ -74,6 +78,11 @@ handle_arp(
     rte_pktmbuf_dump(stdout, response_pkt, response_pkt->data_len);
 #endif
 
+    char ip_addr_str[INET_ADDRSTRLEN];
+    char mac_addr_str[RTE_ETHER_ADDR_FMT_SIZE];
+    inet_ntop(AF_INET, &request_arp_hdr->arp_data.arp_tip, ip_addr_str, INET_ADDRSTRLEN);
+    rte_ether_format_addr(mac_addr_str, RTE_ETHER_ADDR_FMT_SIZE, &response_eth_hdr->src_addr);
+
     uint16_t nb_tx_packets = 0;
     while (nb_tx_packets < 1) {
         nb_tx_packets = rte_eth_tx_burst(port_id, queue_id, &response_pkt, 1);
@@ -82,9 +91,7 @@ handle_arp(
         }
     }
     
-    char ip_addr_str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &request_arp_hdr->arp_data.arp_tip, ip_addr_str, INET_ADDRSTRLEN);
-    DOCA_LOG_INFO("Handled ARP for IP %s", ip_addr_str);
+    DOCA_LOG_INFO("Handled ARP for IP %s -> %s", ip_addr_str, mac_addr_str);
 
     return 1;
 }
@@ -306,11 +313,13 @@ lcore_pkt_proc_func(void *lcore_args)
     DOCA_LOG_INFO("L-Core %d polling queue %d (all ports)", lcore_id, queue_id);
 
 	while (!force_quit) {
+        uint16_t pkt_counts[RTE_MAX_ETHPORTS];
         for (uint16_t port_id = 0; port_id < rte_eth_dev_count_avail() && !force_quit; port_id++) {
             uint64_t t_start = rte_rdtsc();
 
             uint16_t nb_rx_packets = rte_eth_rx_burst(
                 port_id, queue_id, rx_packets, MAX_RX_BURST_SIZE);
+            pkt_counts[port_id] = nb_rx_packets;
             
             if (!nb_rx_packets)
                 continue;
@@ -327,6 +336,9 @@ lcore_pkt_proc_func(void *lcore_args)
                     lcore_id, port_id, nb_rx_packets, sec);
             }
         }
+        if ((pkt_counts[0] || pkt_counts[1] || pkt_counts[2] || pkt_counts[3]) && false)
+            DOCA_LOG_INFO("Pkt counts for %d ports: %d %d %d %d", rte_eth_dev_count_avail(), 
+                pkt_counts[0], pkt_counts[1], pkt_counts[2], pkt_counts[3]);
 	}
 
 	return 0;

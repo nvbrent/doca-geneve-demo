@@ -11,13 +11,13 @@ DOCA_LOG_REGISTER(geneve_demo_vnet_conf_loader);
 
 struct vnet_flow_builder_config
 {
-    uint16_t port_id;
+    uint16_t uplink_port_id;
+    uint16_t vf_port_id;
     const struct vnet_host_t *self;
     struct geneve_demo_config *demo_config;
     struct rte_hash *session_ht;
 	struct doca_flow_pipe *encap_pipe; 
 	struct doca_flow_pipe *decap_pipe;
-    session_id_t next_session_id;
 };
 
 static const struct vnet_host_t *
@@ -142,8 +142,9 @@ static bool build_session(
     
     struct session_def *session = calloc(1, sizeof(struct session_def));
 
-    session->session_id = ++builder_config->next_session_id; // TODO: need to keep global next_session_id across all PFs
-    session->vf_port_id = builder_config->port_id + 1; // assume the VF port_id is just the PF port_id + 1
+    session->session_id = ++builder_config->demo_config->next_session_id;
+    session->pf_port_id = builder_config->uplink_port_id;
+    session->vf_port_id = builder_config->vf_port_id;
 
     session->vnet_id_ingress = remote_vnic->vnet_id_out;
     session->vnet_id_egress = local_vnic->vnet_id_out;
@@ -188,21 +189,22 @@ static bool build_session(
 
 int load_vnet_conf_sessions(
     struct geneve_demo_config *demo_config,
-    uint32_t port_id,
+    uint32_t uplink_port_id,
+    uint32_t vf_port_id,
     struct rte_hash *session_ht,
 	struct doca_flow_pipe *encap_pipe, 
 	struct doca_flow_pipe *decap_pipe)
 {
-    demo_config->self[port_id] = find_self(port_id, demo_config->vnet_config);
+    demo_config->self[uplink_port_id] = find_self(uplink_port_id, demo_config->vnet_config);
     
     struct vnet_flow_builder_config builder_config = {
-        .port_id = port_id,
-        .self = demo_config->self[port_id],
+        .uplink_port_id = uplink_port_id,
+        .vf_port_id = vf_port_id,
+        .self = demo_config->self[uplink_port_id],
         .demo_config = demo_config,
         .session_ht = session_ht,
         .encap_pipe = encap_pipe,
         .decap_pipe = decap_pipe,
-        .next_session_id = 4000,
     };
 
     uint32_t total_sessions = 0;

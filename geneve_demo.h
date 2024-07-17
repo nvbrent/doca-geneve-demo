@@ -46,6 +46,9 @@ struct flows_and_stats
 {
 	struct doca_flow_port *pf_port;
 
+    uint16_t uplink_port_id;
+    uint16_t vf_port_id;
+
 	struct doca_flow_pipe_entry *sampling_entry_list[4];
 		
 	struct doca_flow_pipe *rss_pipe;
@@ -68,6 +71,8 @@ struct flows_and_stats
 	int64_t prev_sampling_total_count;
 };
 
+typedef uint64_t session_id_t;
+
 struct geneve_demo_config
 {
 	struct application_dpdk_config dpdk_config;
@@ -84,6 +89,7 @@ struct geneve_demo_config
     
     const char *vnet_config_file;
 
+    session_id_t next_session_id;
 	struct vnet_config_t *vnet_config;
     const struct vnet_host_t *self[max_num_pf];
 
@@ -93,8 +99,6 @@ struct geneve_demo_config
 
     struct flows_and_stats flows[max_num_pf];
 };
-
-typedef uint64_t session_id_t;
 
 struct session_def
 {
@@ -147,7 +151,8 @@ struct rte_hash;
 
 int load_vnet_conf_sessions(
     struct geneve_demo_config *demo_config,
-    uint32_t port_id,
+    uint32_t uplink_port_id,
+    uint32_t vf_port_id,
     struct rte_hash *session_ht,
 	struct doca_flow_pipe *encap_pipe, 
 	struct doca_flow_pipe *decap_pipe);

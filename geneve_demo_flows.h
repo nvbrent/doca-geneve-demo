@@ -48,11 +48,14 @@ create_decap_entry(
 
 struct doca_flow_pipe*
 create_rss_pipe(
+	uint16_t nr_queues,
 	struct doca_flow_port *port);
 
 struct doca_flow_pipe_entry**
 create_root_pipe(
     struct doca_flow_port *port, 
+	uint16_t uplink_port_id,
+	uint16_t vf_port_id,
     struct doca_flow_pipe *decap_pipe,
     struct doca_flow_pipe *encap_pipe,
 	struct doca_flow_pipe *rss_pipe,
@@ -61,6 +64,7 @@ create_root_pipe(
 struct doca_flow_pipe_entry*
 create_arp_response_pipe(
 	struct doca_flow_port *port,
+	uint16_t port_id,
 	uint32_t arp_response_meta_flag);
 
 struct doca_flow_pipe *

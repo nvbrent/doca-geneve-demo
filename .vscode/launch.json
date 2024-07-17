@@ -10,10 +10,7 @@
             "request": "launch",
             "type": "cppdbg",
             "args": [
-                "-a17:00.0,dv_flow_en=2,representor=vf[0-63]",
-                "-c0x3",
-                "--",
-                "-l", "60"
+                "--config", "/swgwork/bschartung/repos/doca-geneve-demo/testbed.jsonc",
             ],
             "cwd": "${workspaceFolder}"
         }

@@ -77,6 +77,8 @@ struct geneve_demo_config
 {
 	struct application_dpdk_config dpdk_config;
 
+	uint32_t core_mask;
+	
 	uint32_t num_pfs;
 
 	struct doca_flow_port *ports[max_num_ports];

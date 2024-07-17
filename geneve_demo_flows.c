@@ -148,7 +148,7 @@ doca_error_t configure_mirror(uint32_t mirror_id, enum doca_flow_pipe_domain dom
 		},
 	};
 	struct doca_flow_shared_resource_cfg res_cfg = {
-		.domain = domain,
+		.domain = domain, // TODO: fix mismatched domains
 		.mirror_cfg.nr_targets = 1,
 		.mirror_cfg.target = &mirr_tgt,
 	};

@@ -72,3 +72,7 @@ struct vnet_config_t
 
 doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t *config);
 
+uint32_t find_my_vnet_pfs(const struct vnet_config_t *config, const char **pf_netdev_names);
+
+const struct vnet_host_t *
+find_phys_host_by_name(const char *hostname, const struct vnet_config_t *config);

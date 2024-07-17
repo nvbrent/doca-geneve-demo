@@ -20,7 +20,7 @@ struct vnet_flow_builder_config
 	struct doca_flow_pipe *decap_pipe;
 };
 
-static const struct vnet_host_t *
+const struct vnet_host_t *
 find_phys_host_by_name(
     const char *hostname, 
     const struct vnet_config_t *config)

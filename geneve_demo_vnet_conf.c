@@ -1,4 +1,5 @@
 #include <json-c/json.h>
+#include <unistd.h>
 
 #include <geneve_demo_vnet_conf.h>
 #include <doca_log.h>
@@ -11,13 +12,10 @@ DOCA_LOG_REGISTER(vnet_conf);
 static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic, int addr_fam)
 {
     // parse index, name, mac, ip, pci, vnet_id
-    struct json_object *index_obj, *name_obj, *mac_obj, *pci_obj, *ip_obj, *vni_obj;
-    if (!json_object_object_get_ex(vnic_obj, "index", &index_obj) ||
-            !json_object_is_type(index_obj, json_type_int)) {
-        DOCA_LOG_ERR("NIC numeric \"index\" required");
-        return DOCA_ERROR_INVALID_VALUE;
-    }
-    vnic->vf_index = json_object_get_int(index_obj);
+    struct json_object *index_obj, *name_obj, *mac_obj, *ip_obj, *vni_obj;
+    if (json_object_object_get_ex(vnic_obj, "index", &index_obj) && json_object_is_type(index_obj, json_type_int)) {
+        vnic->vf_index = json_object_get_int(index_obj);
+    } // else, default to 0
 
     if (!json_object_object_get_ex(vnic_obj, "name", &name_obj)) {
         DOCA_LOG_ERR("NIC \"name\" required");
@@ -32,12 +30,6 @@ static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic
         DOCA_LOG_ERR("NIC: bad mac addr: %s", mac_str);
         return DOCA_ERROR_INVALID_VALUE;
     }
-
-    if (!json_object_object_get_ex(vnic_obj, "pci", &pci_obj)) {
-        DOCA_LOG_ERR("NIC \"pci\" required");
-        return DOCA_ERROR_INVALID_VALUE;
-    }
-    // TODO: parse PCI addr
 
     if (!json_object_object_get_ex(vnic_obj, "ip", &ip_obj)) {
         DOCA_LOG_ERR("NIC \"ip\" required");
@@ -57,18 +49,19 @@ static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic
     vnic->vnet_id_out = json_object_get_int(vni_obj);
 
     vnic->name = strdup(json_object_get_string(name_obj));
-    
+
     return DOCA_SUCCESS;
 }
 
 static doca_error_t parse_nic(struct json_object *nic_obj, struct nic_t *nic, int addr_fam_outer, int addr_fam_inner)
 {
-    // parse name, mac, ip, pci
-    struct json_object *name_obj, *mac_obj, *pci_obj, *ip_obj, *gw_mac_obj, *vnics_obj;
+    // parse NIC attributes
+    struct json_object *name_obj, *mac_obj, *ip_obj, *gw_mac_obj, *vnics_obj;
     if (!json_object_object_get_ex(nic_obj, "name", &name_obj)) {
         DOCA_LOG_ERR("NIC \"name\" required");
         return DOCA_ERROR_INVALID_VALUE;
     }
+
     if (!json_object_object_get_ex(nic_obj, "mac", &mac_obj)) {
         DOCA_LOG_ERR("NIC \"mac\" required");
         return DOCA_ERROR_INVALID_VALUE;
@@ -78,12 +71,6 @@ static doca_error_t parse_nic(struct json_object *nic_obj, struct nic_t *nic, in
         DOCA_LOG_ERR("NIC: bad mac addr: %s", mac_str);
         return DOCA_ERROR_INVALID_VALUE;
     }
-
-    if (!json_object_object_get_ex(nic_obj, "pci", &pci_obj)) {
-        DOCA_LOG_ERR("NIC \"pci\" required");
-        return DOCA_ERROR_INVALID_VALUE;
-    }
-    // TODO: parse PCI addr
 
     if (!json_object_object_get_ex(nic_obj, "ip", &ip_obj)) {
         DOCA_LOG_ERR("NIC \"ip\" required");
@@ -386,4 +373,28 @@ doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t
 	free(json_obj);
     
     return result;
+}
+
+uint32_t find_my_vnet_pfs(const struct vnet_config_t *config, const char **pf_netdev_names)
+{
+    char hostname[1024];
+    int status = gethostname(hostname, sizeof(hostname));
+    if (status) {
+        perror("gethostname");
+        return 0;
+    }
+
+    const struct vnet_host_t *self = find_phys_host_by_name(hostname, config);
+    if (!self) {
+        DOCA_LOG_ERR("Failed to find my hostname %s in config file", hostname);
+        return 0;
+    }
+    
+    DOCA_LOG_ERR("Found my hostname %s in config file with %d PFs", hostname, self->num_nics);
+
+    for (uint32_t i=0; i<self->num_nics; i++) {
+        pf_netdev_names[i] = self->nics[i].name;
+    }
+
+    return self->num_nics;
 }

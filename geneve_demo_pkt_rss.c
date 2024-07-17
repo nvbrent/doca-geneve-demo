@@ -57,7 +57,6 @@ handle_arp(
 	struct rte_ether_hdr *response_eth_hdr = rte_pktmbuf_mtod(response_pkt, struct rte_ether_hdr *);
     struct rte_arp_hdr *response_arp_hdr = (void*)&response_eth_hdr[1];
 
-    rte_eth_macaddr_get(port_id, &response_eth_hdr->src_addr);
     response_eth_hdr->src_addr = dummy_mac_addr;
     response_eth_hdr->dst_addr = request_eth_hdr->src_addr;
     response_eth_hdr->ether_type = RTE_BE16(RTE_ETHER_TYPE_ARP);
@@ -67,7 +66,6 @@ handle_arp(
     response_arp_hdr->arp_hlen = RTE_ETHER_ADDR_LEN;
     response_arp_hdr->arp_plen = sizeof(uint32_t);
     response_arp_hdr->arp_opcode = RTE_BE16(RTE_ARP_OP_REPLY);
-    rte_eth_macaddr_get(port_id, &response_arp_hdr->arp_data.arp_sha);
     response_arp_hdr->arp_data.arp_sha = dummy_mac_addr;
     response_arp_hdr->arp_data.arp_tha = request_arp_hdr->arp_data.arp_sha;
     response_arp_hdr->arp_data.arp_sip = request_arp_hdr->arp_data.arp_tip;
@@ -214,8 +212,6 @@ handle_ipv6(
     inet_ntop(AF_INET6, &request_ip_hdr->src_addr, src_ip, INET6_ADDRSTRLEN);
     inet_ntop(AF_INET6, &request_ip_hdr->dst_addr, dst_ip, INET6_ADDRSTRLEN);
     DOCA_LOG_INFO("IPv6 proto: %d, %s -> %s", request_ip_hdr->proto, src_ip, dst_ip);
-    // int dump_len = 0; // packet->pkt_len
-    // rte_pktmbuf_dump(stdout, packet, dump_len);
     if (request_ip_hdr->proto == DOCA_FLOW_PROTO_ICMP6 && config->enable_uplink_icmp_handling) {
         return handle_icmp6(config, port_id, queue_id, packet);
     }
@@ -313,13 +309,11 @@ lcore_pkt_proc_func(void *lcore_args)
     DOCA_LOG_INFO("L-Core %d polling queue %d (all ports)", lcore_id, queue_id);
 
 	while (!force_quit) {
-        uint16_t pkt_counts[RTE_MAX_ETHPORTS];
         for (uint16_t port_id = 0; port_id < rte_eth_dev_count_avail() && !force_quit; port_id++) {
             uint64_t t_start = rte_rdtsc();
 
             uint16_t nb_rx_packets = rte_eth_rx_burst(
                 port_id, queue_id, rx_packets, MAX_RX_BURST_SIZE);
-            pkt_counts[port_id] = nb_rx_packets;
             
             if (!nb_rx_packets)
                 continue;
@@ -336,9 +330,6 @@ lcore_pkt_proc_func(void *lcore_args)
                     lcore_id, port_id, nb_rx_packets, sec);
             }
         }
-        if ((pkt_counts[0] || pkt_counts[1] || pkt_counts[2] || pkt_counts[3]) && false)
-            DOCA_LOG_INFO("Pkt counts for %d ports: %d %d %d %d", rte_eth_dev_count_avail(), 
-                pkt_counts[0], pkt_counts[1], pkt_counts[2], pkt_counts[3]);
 	}
 
 	return 0;

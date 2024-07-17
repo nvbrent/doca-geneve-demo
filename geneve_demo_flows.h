@@ -37,14 +37,14 @@ create_encap_entry(
 	struct doca_flow_pipe *encap_pipe, 
 	struct session_def *session,
 	uint32_t pipe_queue,
-    struct geneve_demo_config *config);
+	struct geneve_demo_config *config);
 
 struct doca_flow_pipe_entry*
 create_decap_entry(
 	struct doca_flow_pipe *decap_pipe, 
 	struct session_def *session,
 	uint32_t pipe_queue,
-    struct geneve_demo_config *config);
+	struct geneve_demo_config *config);
 
 struct doca_flow_pipe*
 create_rss_pipe(
@@ -53,13 +53,13 @@ create_rss_pipe(
 
 struct doca_flow_pipe_entry**
 create_root_pipe(
-    struct doca_flow_port *port, 
+	struct doca_flow_port *port, 
 	uint16_t uplink_port_id,
 	uint16_t vf_port_id,
-    struct doca_flow_pipe *decap_pipe,
-    struct doca_flow_pipe *encap_pipe,
+	struct doca_flow_pipe *decap_pipe,
+	struct doca_flow_pipe *encap_pipe,
 	struct doca_flow_pipe *rss_pipe,
-    struct geneve_demo_config *config);
+	struct geneve_demo_config *config);
 
 struct doca_flow_pipe_entry*
 create_arp_response_pipe(

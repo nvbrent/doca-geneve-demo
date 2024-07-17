@@ -40,24 +40,24 @@ enum sample_direction_indicator {
     SAMPLE_DIRECTION_INGRESS = 4321,
 };
 
-enum { max_num_pf = 8, max_vf_per_pf = 2 };
+enum { max_num_pf = 8, max_vf_per_pf = 2, max_num_ports = max_num_pf * max_vf_per_pf };
 
 struct flows_and_stats
 {
 	struct doca_flow_port *pf_port;
 
-    uint16_t uplink_port_id;
-    uint16_t vf_port_id;
+	uint16_t uplink_port_id;
+	uint16_t vf_port_id;
 
 	struct doca_flow_pipe_entry *sampling_entry_list[4];
-		
+
 	struct doca_flow_pipe *rss_pipe;
 	struct doca_flow_pipe *fwd_to_uplink_pipe;
 
 	struct doca_flow_pipe *decap_pipe;
 
 	struct doca_flow_pipe *ingr_sampl_pipe;
-		
+
 	struct doca_flow_pipe *egr_sampl_pipe;
 
 	struct doca_flow_pipe *encap_pipe;
@@ -77,27 +77,27 @@ struct geneve_demo_config
 {
 	struct application_dpdk_config dpdk_config;
 
-    uint32_t num_pfs;
+	uint32_t num_pfs;
 
-	struct doca_flow_port *ports[max_num_pf * max_vf_per_pf];
-	bool port_is_pf[max_num_pf * max_vf_per_pf];
-    struct doca_dev *pf_dev[max_num_pf * max_vf_per_pf];
+	struct doca_flow_port *ports[max_num_ports];
+	bool port_is_pf[max_num_ports];
+	struct doca_dev *pf_dev[max_num_ports];
 
-    uint32_t mirror_id_ingress_to_rss[max_num_pf];
-    uint32_t mirror_id_egress_to_rss[max_num_pf];
-    uint32_t sample_mask; // 0 for 1:1 sampling, UINT32_MAX to disable
-    
-    const char *vnet_config_file;
+	uint32_t mirror_id_ingress_to_rss[max_num_pf];
+	uint32_t mirror_id_egress_to_rss[max_num_pf];
+	uint32_t sample_mask; // 0 for 1:1 sampling, UINT32_MAX to disable
 
-    session_id_t next_session_id;
+	const char *vnet_config_file;
+
+	session_id_t next_session_id;
 	struct vnet_config_t *vnet_config;
-    const struct vnet_host_t *self[max_num_pf];
+	const struct vnet_host_t *self[max_num_pf];
 
-    uint32_t arp_response_meta_flag;
+	uint32_t arp_response_meta_flag;
 
-    bool enable_uplink_icmp_handling;
+	bool enable_uplink_icmp_handling;
 
-    struct flows_and_stats flows[max_num_pf];
+	struct flows_and_stats flows[max_num_pf];
 };
 
 struct session_def

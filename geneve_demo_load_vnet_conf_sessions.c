@@ -11,11 +11,11 @@ DOCA_LOG_REGISTER(geneve_demo_vnet_conf_loader);
 
 struct vnet_flow_builder_config
 {
-    uint16_t uplink_port_id;
-    uint16_t vf_port_id;
-    const struct vnet_host_t *self;
-    struct geneve_demo_config *demo_config;
-    struct rte_hash *session_ht;
+	uint16_t uplink_port_id;
+	uint16_t vf_port_id;
+	const struct vnet_host_t *self;
+	struct geneve_demo_config *demo_config;
+	struct rte_hash *session_ht;
 	struct doca_flow_pipe *encap_pipe; 
 	struct doca_flow_pipe *decap_pipe;
 };
@@ -188,10 +188,10 @@ static bool build_session(
 }
 
 int load_vnet_conf_sessions(
-    struct geneve_demo_config *demo_config,
-    uint32_t uplink_port_id,
-    uint32_t vf_port_id,
-    struct rte_hash *session_ht,
+	struct geneve_demo_config *demo_config,
+	uint32_t uplink_port_id,
+	uint32_t vf_port_id,
+	struct rte_hash *session_ht,
 	struct doca_flow_pipe *encap_pipe, 
 	struct doca_flow_pipe *decap_pipe)
 {

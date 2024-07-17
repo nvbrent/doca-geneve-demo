@@ -385,7 +385,5 @@ doca_error_t load_vnet_config(const char *config_json_path, struct vnet_config_t
 
 	free(json_obj);
     
-    //load_hard_coded_config_values(config);
-
     return result;
 }

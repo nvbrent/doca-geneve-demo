@@ -110,7 +110,7 @@ static int64_t max64(int64_t x, int64_t y)
 
 static int64_t show_counters(
 	struct rte_hash *session_ht,
-	struct geneve_demo_config *config, 
+	struct geneve_demo_config *config,
 	bool display)
 {
 	session_id_t *session_id = NULL;
@@ -121,17 +121,17 @@ static int64_t show_counters(
 	while (rte_hash_iterate(session_ht, (const void**)&session_id, (void**)&session, &session_itr) >= 0) {
 		doca_error_t res;
 		struct doca_flow_resource_query flow_stats = {};
-		
+
 		res = doca_flow_resource_query_entry(session->encap_entry, &flow_stats);
 		int64_t encap_hits = (res==DOCA_SUCCESS) ? flow_stats.counter.total_pkts : -1;
-		
+
 		res = doca_flow_resource_query_entry(session->decap_entry, &flow_stats);
 		int64_t decap_hits = (res==DOCA_SUCCESS) ? flow_stats.counter.total_pkts : -1;
-		
+
 		if (display && (encap_hits || decap_hits))
-			DOCA_LOG_INFO("Session %ld encap: %ld hits, decap: %ld hits", 
+			DOCA_LOG_INFO("Session %ld encap: %ld hits, decap: %ld hits",
 				session->session_id, encap_hits, decap_hits);
-		
+
 		total_hits += max64(0, encap_hits) + max64(0, decap_hits);
 	}
 	return total_hits;
@@ -141,7 +141,7 @@ static int64_t show_entry_list_counters(
 	uint32_t pf_idx,
 	const char *entry_list_name,
 	struct doca_flow_pipe_entry **entry_list,
-	struct geneve_demo_config *config, 
+	struct geneve_demo_config *config,
 	bool display)
 {
 	int64_t total_hits = 0;
@@ -149,14 +149,14 @@ static int64_t show_entry_list_counters(
 	for (int entry_idx = 0; entry_list[entry_idx] != NULL; entry_idx++) {
 		doca_error_t res;
 		struct doca_flow_resource_query flow_stats = {};
-		
+
 		res = doca_flow_resource_query_entry(entry_list[entry_idx], &flow_stats);
 		int64_t hits = (res==DOCA_SUCCESS) ? flow_stats.counter.total_pkts : -1;
-		
+
 		if (display && hits)
-			DOCA_LOG_INFO("PF%d: %s entry[%d]: %ld hits", 
+			DOCA_LOG_INFO("PF%d: %s entry[%d]: %ld hits",
 				pf_idx, entry_list_name, entry_idx, hits);
-		
+
 		total_hits += max64(0, hits);
 	}
 	return total_hits;
@@ -181,7 +181,7 @@ struct flows_and_stats default_flows_and_stats = {
 int
 main(int argc, char **argv)
 {
-	char **dpdk_argv = malloc(argc * sizeof(void*)); // same as argv but without -a arguments	
+	char **dpdk_argv = malloc(argc * sizeof(void*)); // same as argv but without -a arguments
 	char *pci_addr_arg[max_num_pf] = {NULL};
 
 	struct vnet_config_t vnet_config = {};
@@ -213,7 +213,7 @@ main(int argc, char **argv)
 	result = doca_log_backend_set_sdk_level(sdk_log, DOCA_LOG_LEVEL_WARNING);
 	if (result != DOCA_SUCCESS)
 		exit(1);
-	
+
 	/* Parse cmdline/json arguments */
 
 	config.num_pfs = disable_dpdk_accept_args(argc, argv, dpdk_argv, pci_addr_arg);
@@ -248,7 +248,7 @@ main(int argc, char **argv)
 
 	rte_flow_dynf_metadata_register();
 
-	for (uint16_t pf_idx = 0; pf_idx < config.num_pfs; pf_idx++) {		
+	for (uint16_t pf_idx = 0; pf_idx < config.num_pfs; pf_idx++) {
 		uint16_t port_id = rte_eth_dev_count_avail();
 		result = open_doca_device_with_pci(pci_addr_arg[pf_idx], NULL, &config.pf_dev[port_id]);
 		if (result != DOCA_SUCCESS) {
@@ -258,7 +258,7 @@ main(int argc, char **argv)
 		DOCA_LOG_INFO("Port %d is a PF", port_id);
 
 		// Note: ignoring devarg and hard-coding it as follows:
-		result = doca_dpdk_port_probe(config.pf_dev[port_id], 
+		result = doca_dpdk_port_probe(config.pf_dev[port_id],
 			"dv_flow_en=2,"
 			"dv_xmeta_en=4,"
 			"fdb_def_rule_en=0,"
@@ -309,7 +309,7 @@ main(int argc, char **argv)
 		configure_mirror(config.mirror_id_egress_to_rss[pf_idx], DOCA_FLOW_PIPE_DOMAIN_EGRESS, flows->rss_pipe, flows->pf_port);
 
 		flows->decap_pipe = create_decap_tunnel_pipe(
-			flows->pf_port, 
+			flows->pf_port,
 			&config);
 
 		flows->ingr_sampl_pipe = create_sampling_pipe(
@@ -321,7 +321,7 @@ main(int argc, char **argv)
 			flows->decap_pipe, // dest after sampling
 			flows->decap_pipe, // dest after not sampling
 			&flows->sampling_entry_list[1]);
-		
+
 		flows->egr_sampl_pipe = create_sampling_pipe(
 			DOCA_FLOW_PIPE_DOMAIN_EGRESS,
 			config.sample_mask, // log2(sample-rate)
@@ -333,43 +333,43 @@ main(int argc, char **argv)
 			&flows->sampling_entry_list[2]);
 
 		flows->encap_pipe = create_encap_tunnel_pipe(
-			flows->pf_port, 
-			flows->egr_sampl_pipe, 
+			flows->pf_port,
+			flows->egr_sampl_pipe,
 			&config);
 
 		flows->root_pipe_entry_list = create_root_pipe(
-			flows->pf_port, 
+			flows->pf_port,
 			flows->uplink_port_id,
 			flows->vf_port_id,
-			flows->ingr_sampl_pipe, 
-			flows->encap_pipe, 
-			flows->rss_pipe, 
+			flows->ingr_sampl_pipe,
+			flows->encap_pipe,
+			flows->rss_pipe,
 			&config);
 
 		flows->arp_response_entry_list[0] = create_arp_response_pipe(
-			flows->pf_port, 
+			flows->pf_port,
 			flows->vf_port_id,
 			config.arp_response_meta_flag);
 
-		if (!flows->rss_pipe || 
-			!flows->decap_pipe || 
-			!flows->encap_pipe || 
+		if (!flows->rss_pipe ||
+			!flows->decap_pipe ||
+			!flows->encap_pipe ||
 			!flows->ingr_sampl_pipe ||
 			!flows->egr_sampl_pipe ||
-			!flows->root_pipe_entry_list[0] || 
+			!flows->root_pipe_entry_list[0] ||
 			!flows->arp_response_entry_list[0]) {
 			rte_exit(EXIT_FAILURE, "Failed to init doca flow for port_id %d\n", flows->uplink_port_id);
 		}
-		
+
 		load_vnet_conf_sessions(
-			&config, 
-			flows->uplink_port_id, 
-			flows->vf_port_id, 
-			session_ht, 
-			flows->encap_pipe, 
+			&config,
+			flows->uplink_port_id,
+			flows->vf_port_id,
+			session_ht,
+			flows->encap_pipe,
 			flows->decap_pipe);
 	}
-	
+
 	uint32_t lcore_id;
 	RTE_LCORE_FOREACH_WORKER(lcore_id) {
 		rte_eal_remote_launch(lcore_pkt_proc_func, &config, lcore_id);
@@ -405,7 +405,7 @@ main(int argc, char **argv)
 		rte_eal_wait_lcore(lcore_id);
 	}
 
-	// Stop VFs before PFs	
+	// Stop VFs before PFs
 	stop_ports(&config, false);
 	stop_ports(&config, true);
 

@@ -155,7 +155,7 @@ doca_error_t configure_mirror(uint32_t mirror_id, enum doca_flow_pipe_domain dom
 
 	doca_error_t result = DOCA_SUCCESS;
 	IF_SUCCESS(result, doca_flow_shared_resource_set_cfg(DOCA_FLOW_SHARED_RESOURCE_MIRROR, mirror_id, &res_cfg));
-	IF_SUCCESS(result, doca_flow_shared_resources_bind(DOCA_FLOW_SHARED_RESOURCE_MIRROR, &mirror_id, 1, owner_port));	
+	IF_SUCCESS(result, doca_flow_shared_resources_bind(DOCA_FLOW_SHARED_RESOURCE_MIRROR, &mirror_id, 1, owner_port));
 	return result;
 }
 
@@ -688,10 +688,10 @@ struct doca_flow_pipe_entry**
 create_root_pipe(struct doca_flow_port *port,
 	uint16_t uplink_port_id,
 	uint16_t vf_port_id,
-    struct doca_flow_pipe *decap_pipe,
-    struct doca_flow_pipe *encap_pipe,
+	struct doca_flow_pipe *decap_pipe,
+	struct doca_flow_pipe *encap_pipe,
 	struct doca_flow_pipe *rss_pipe,
-    struct geneve_demo_config *config)
+	struct geneve_demo_config *config)
 {
 	// NOTE: in Switch mode, we cannot create an explicit flow to send packets to target=kernel.
 	// (Target type kernel is not supported in switch mode)
@@ -741,7 +741,6 @@ create_root_pipe(struct doca_flow_port *port,
         .type = DOCA_FLOW_FWD_PIPE,
         .next_pipe = decap_pipe,
     };
-	if (true) {
 	// Uplink Geneve -> decap pipe
     IF_SUCCESS(result, doca_flow_pipe_control_add_entry(
         0, priority_uplink_to_vf, ctrl_pipe, &from_uplink_match, &from_uplink_match_mask, 
@@ -749,7 +748,6 @@ create_root_pipe(struct doca_flow_port *port,
 		&entry));
 	if (entry)
 		entry_list[n_entries++] = entry;
-	}
 
 	int inner_addr_fam = config->vnet_config->inner_addr_fam;
 	
@@ -766,7 +764,6 @@ create_root_pipe(struct doca_flow_port *port,
         .next_pipe = encap_pipe,
     };
 
-	if (true) {
 	// VF ipv4/ipv6 -> encap pipe
     IF_SUCCESS(result, doca_flow_pipe_control_add_entry(
         0, priority_vf_to_uplink, ctrl_pipe, &from_vf_match, &from_vf_match_mask, 
@@ -774,7 +771,6 @@ create_root_pipe(struct doca_flow_port *port,
 		&entry));
 	if (entry)
 		entry_list[n_entries++] = entry;
-	}
 
 	from_vf_match.outer.eth.type = RTE_BE16(RTE_ETHER_TYPE_ARP);
 	from_vf_fwd.type = DOCA_FLOW_FWD_PIPE;

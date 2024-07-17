@@ -28,7 +28,7 @@ flow_init(
 	struct doca_dev *pf_dev);
 
 struct doca_flow_pipe*
-create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config);
+create_encap_tunnel_pipe(struct doca_flow_port *port, struct doca_flow_pipe *next_pipe, struct geneve_demo_config *config);
 
 struct doca_flow_pipe*
 create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config);
@@ -63,3 +63,18 @@ struct doca_flow_pipe_entry*
 create_arp_response_pipe(
 	struct doca_flow_port *port,
 	uint32_t arp_response_meta_flag);
+
+struct doca_flow_pipe *
+create_sampling_pipe(
+	enum doca_flow_pipe_domain domain,
+	uint32_t random_mask, 
+	uint32_t pkt_meta, 
+	struct doca_flow_port *port, 
+	uint32_t mirror_id, 
+	struct doca_flow_pipe *next_pipe,
+	struct doca_flow_pipe_entry **sampling_entry);
+
+struct doca_flow_pipe *
+create_fwd_to_port_pipe(struct doca_flow_port *port, uint32_t port_id, struct doca_flow_pipe_entry **fwd_entry);
+
+doca_error_t configure_mirror(uint32_t mirror_id, enum doca_flow_pipe_domain domain, struct doca_flow_pipe *next_pipe, struct doca_flow_port *owner_port);

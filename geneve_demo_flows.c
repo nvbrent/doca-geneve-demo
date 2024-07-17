@@ -139,6 +139,26 @@ process_all_entries(
 	return DOCA_SUCCESS;
 }
 
+doca_error_t configure_mirror(uint32_t mirror_id, enum doca_flow_pipe_domain domain, struct doca_flow_pipe *next_pipe, struct doca_flow_port *owner_port)
+{
+	struct doca_flow_mirror_target mirr_tgt = {
+		.fwd = {
+			.type = DOCA_FLOW_FWD_PIPE,
+			.next_pipe = next_pipe,
+		},
+	};
+	struct doca_flow_shared_resource_cfg res_cfg = {
+		.domain = domain,
+		.mirror_cfg.nr_targets = 1,
+		.mirror_cfg.target = &mirr_tgt,
+	};
+
+	doca_error_t result = DOCA_SUCCESS;
+	IF_SUCCESS(result, doca_flow_shared_resource_set_cfg(DOCA_FLOW_SHARED_RESOURCE_MIRROR, mirror_id, &res_cfg));
+	IF_SUCCESS(result, doca_flow_shared_resources_bind(DOCA_FLOW_SHARED_RESOURCE_MIRROR, &mirror_id, 1, owner_port));	
+	return result;
+}
+
 int
 flow_init(
 	struct geneve_demo_config *config,
@@ -151,6 +171,7 @@ flow_init(
 	IF_SUCCESS(result, doca_flow_cfg_set_nr_counters(flow_cfg, 1024));
 	IF_SUCCESS(result, doca_flow_cfg_set_mode_args(flow_cfg, "switch,hws,isolated"));
 	IF_SUCCESS(result, doca_flow_cfg_set_cb_entry_process(flow_cfg, check_for_valid_entry));
+	IF_SUCCESS(result, doca_flow_cfg_set_nr_shared_resource(flow_cfg, 10, DOCA_FLOW_SHARED_RESOURCE_MIRROR));
 	IF_SUCCESS(result, doca_flow_init(flow_cfg));
 	if (flow_cfg) {
 		doca_flow_cfg_destroy(flow_cfg);
@@ -170,6 +191,110 @@ flow_init(
 	}
 
 	return 0;
+}
+
+struct doca_flow_pipe *
+create_fwd_to_port_pipe(struct doca_flow_port *port, uint32_t port_id, struct doca_flow_pipe_entry **fwd_entry)
+{
+	struct doca_flow_match match = {};
+	struct doca_flow_fwd fwd = { .type = DOCA_FLOW_FWD_PORT, .port_id = port_id };
+
+	doca_error_t result = DOCA_SUCCESS;
+	struct doca_flow_pipe_cfg *pipe_cfg;
+	struct doca_flow_pipe *pipe = NULL;
+	const char *pipe_name = "FWD_TO_PORT";
+	IF_SUCCESS(result, doca_flow_pipe_cfg_create(&pipe_cfg, doca_flow_port_switch_get(port)));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_domain(pipe_cfg, DOCA_FLOW_PIPE_DOMAIN_EGRESS));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_monitor(pipe_cfg, &monitor_count));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, &match));
+	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd, NULL, &pipe));
+	if (pipe_cfg) {
+		doca_flow_pipe_cfg_destroy(pipe_cfg);
+	}
+	if (result != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
+			pipe_name, result, doca_error_get_descr(result));
+	}
+
+	struct entries_status entries_status = {};
+	int pipe_queue = 0;
+	int flags = DOCA_FLOW_NO_WAIT;
+	++entries_status.entries_in_queue;
+	IF_SUCCESS(result, doca_flow_pipe_add_entry(
+		pipe_queue, pipe, &match, NULL, NULL, &fwd, flags, &entries_status, fwd_entry));
+	IF_SUCCESS(result, process_all_entries(pipe_name, doca_flow_port_switch_get(port), &entries_status, ENTRY_TIMEOUT_USEC));
+
+	return pipe;
+}
+
+struct doca_flow_pipe *
+create_sampling_pipe(
+	enum doca_flow_pipe_domain domain,
+	uint32_t random_mask, 
+	uint32_t pkt_meta, 
+	struct doca_flow_port *port, 
+	uint32_t mirror_id, 
+	struct doca_flow_pipe *next_pipe,
+	struct doca_flow_pipe_entry **sampling_entry)
+{
+	struct doca_flow_match match = {
+		.parser_meta.random = 0,
+	};
+	struct doca_flow_match match_mask = {
+		.parser_meta.random = random_mask,
+	};
+	struct doca_flow_monitor monitor_mirror = {
+		.counter_type = DOCA_FLOW_RESOURCE_TYPE_NON_SHARED,
+		.shared_mirror_id = mirror_id,
+	};
+	struct doca_flow_actions set_meta = {
+		.meta.pkt_meta = pkt_meta,
+	};
+	struct doca_flow_actions *actions_arr[] = {&set_meta};
+
+	struct doca_flow_actions set_meta_mask = {
+		.meta.pkt_meta = UINT32_MAX,
+	};
+	struct doca_flow_actions *actions_masks_arr[] = {&set_meta_mask};
+	struct doca_flow_fwd fwd = {
+		.type = DOCA_FLOW_FWD_PIPE,
+		.next_pipe = next_pipe,
+	};
+
+	doca_error_t result = DOCA_SUCCESS;
+	struct doca_flow_pipe_cfg *pipe_cfg;
+	struct doca_flow_pipe *pipe = NULL;
+	const char *pipe_name = "SAMPLING_PIPE";
+	IF_SUCCESS(result, doca_flow_pipe_cfg_create(&pipe_cfg, doca_flow_port_switch_get(port)));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_domain(pipe_cfg, domain));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, &match_mask));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_monitor(pipe_cfg, &monitor_mirror));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_arr, actions_masks_arr, NULL, 1));
+	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd, &fwd, &pipe));
+	if (pipe_cfg) {
+		doca_flow_pipe_cfg_destroy(pipe_cfg);
+	}
+	if (result != DOCA_SUCCESS) {
+		rte_exit(EXIT_FAILURE, "Failed to create Pipe %s: %d (%s)\n",
+			pipe_name, result, doca_error_get_descr(result));
+	}
+
+	if (random_mask == UINT32_MAX) {
+		*sampling_entry = NULL;
+	} else {
+		struct entries_status entries_status = {};
+		int pipe_queue = 0;
+		int flags = DOCA_FLOW_NO_WAIT;
+		++entries_status.entries_in_queue;
+		IF_SUCCESS(result, doca_flow_pipe_add_entry(
+			pipe_queue, pipe, &match, NULL, NULL, &fwd, flags, &entries_status, sampling_entry));
+		IF_SUCCESS(result, process_all_entries(pipe_name, doca_flow_port_switch_get(port), &entries_status, ENTRY_TIMEOUT_USEC));
+	}
+	return pipe;
 }
 
 struct doca_flow_match encap_pipe_match_ipv4 = {
@@ -225,7 +350,7 @@ struct doca_flow_header_format encap_pipe_action_outer_ipv6 = {
 };
 
 struct doca_flow_pipe*
-create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config *config)
+create_encap_tunnel_pipe(struct doca_flow_port *port, struct doca_flow_pipe *next_pipe, struct geneve_demo_config *config)
 {
 	int inner_addr_fam = config->vnet_config->inner_addr_fam;
 	int outer_addr_fam = config->vnet_config->outer_addr_fam;
@@ -235,8 +360,8 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 		encap_pipe_match_ipv6;
 
 	struct doca_flow_fwd fwd = {
-		.type = DOCA_FLOW_FWD_PORT,
-		.port_id = PORT_ID_ANY,
+		.type = DOCA_FLOW_FWD_PIPE,
+		.next_pipe = next_pipe,
 	};
 	struct doca_flow_actions actions = {
 		.encap_type = DOCA_FLOW_RESOURCE_TYPE_NON_SHARED,
@@ -264,7 +389,7 @@ create_encap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	const char *pipe_name = "GENEVE_ENCAP_PIPE";
 	IF_SUCCESS(result, doca_flow_pipe_cfg_create(&pipe_cfg, doca_flow_port_switch_get(port)));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_dir_info(pipe_cfg, DOCA_FLOW_DIRECTION_HOST_TO_NETWORK));
+	IF_SUCCESS(result, doca_flow_pipe_cfg_set_domain(pipe_cfg, DOCA_FLOW_PIPE_DOMAIN_EGRESS));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1024));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, NULL));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_ptr_arr, NULL, NULL, 1));
@@ -300,11 +425,6 @@ create_encap_entry(
 	} else {
 		match.outer.ip4.dst_ip = session->virt_remote_ip.ipv4;
 	}
-
-	struct doca_flow_fwd fwd = {
-		.type = DOCA_FLOW_FWD_PORT,
-		.port_id = config->uplink_port_id,
-	};
 
 	uint16_t next_proto = inner_addr_fam==AF_INET6 ? DOCA_FLOW_ETHER_TYPE_IPV6 : DOCA_FLOW_ETHER_TYPE_IPV4;
 	struct doca_flow_actions actions = {
@@ -363,7 +483,7 @@ create_encap_entry(
 	struct doca_flow_pipe_entry *entry = NULL;
 	doca_error_t result = DOCA_SUCCESS;
 	IF_SUCCESS(result, doca_flow_pipe_add_entry(
-		pipe_queue, encap_pipe, &match, &actions, NULL, &fwd, flags, &entries_status, &entry));
+		pipe_queue, encap_pipe, &match, &actions, NULL, NULL, flags, &entries_status, &entry));
 	IF_SUCCESS(result, process_all_entries("ENCAP", config->ports[config->uplink_port_id], &entries_status, ENTRY_TIMEOUT_USEC));
 
 	return entry;
@@ -429,7 +549,6 @@ create_decap_tunnel_pipe(struct doca_flow_port *port, struct geneve_demo_config 
 	const char *pipe_name = "GENEVE_DECAP_PIPE";
 	IF_SUCCESS(result, doca_flow_pipe_cfg_create(&pipe_cfg, doca_flow_port_switch_get(port)));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_dir_info(pipe_cfg, DOCA_FLOW_DIRECTION_NETWORK_TO_HOST));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1024));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, NULL));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_arr, actions_arr, NULL, 1));
@@ -536,7 +655,6 @@ create_rss_pipe(
 	const char *pipe_name = "RSS_PIPE";
 	IF_SUCCESS(result, doca_flow_pipe_cfg_create(&pipe_cfg, doca_flow_port_switch_get(port)));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_name(pipe_cfg, pipe_name));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_is_root(pipe_cfg, true));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &null_match, &null_match));
 	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd_rss, NULL, &rss_pipe));

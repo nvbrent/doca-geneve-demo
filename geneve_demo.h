@@ -35,11 +35,20 @@ union ip_addr
     ipv6_addr_t ipv6;
 };
 
+enum sample_direction_indicator {
+    SAMPLE_DIRECTION_EGRESS = 1234,
+    SAMPLE_DIRECTION_INGRESS = 4321,
+};
+
 struct geneve_demo_config
 {
 	struct application_dpdk_config dpdk_config;
 
 	struct doca_flow_port **ports;
+
+    uint32_t mirror_id_ingress_to_rss;
+    uint32_t mirror_id_egress_to_rss;
+    uint32_t sample_mask; // 0 for 1:1 sampling, UINT32_MAX to disable
     
     const char *vnet_config_file;
 

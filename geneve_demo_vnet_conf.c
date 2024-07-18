@@ -28,7 +28,7 @@ static doca_error_t parse_vnic(struct json_object *vnic_obj, struct vnic_t *vnic
         return DOCA_ERROR_INVALID_VALUE;
     }
     const char *ip_str = json_object_get_string(ip_obj);
-    if (inet_pton(addr_fam, ip_str, &vnic->ip) != 1) { // 1 if successful
+    if (inet_pton(addr_fam, ip_str, &vnic->ip.ipv6_addr) != 1) { // 1 if successful
         DOCA_LOG_ERR("NIC: bad IPv6 addr: %s", ip_str);
         return DOCA_ERROR_INVALID_VALUE;
     }
@@ -78,7 +78,7 @@ static doca_error_t parse_nic(struct json_object *nic_obj, struct nic_t *nic, in
             return DOCA_ERROR_INVALID_VALUE;
         }
     }
-    if (inet_pton(addr_fam_outer, ip_str, &nic->ip) != 1) { // 1 if successful
+    if (inet_pton(addr_fam_outer, ip_str, &nic->ip.ipv6_addr) != 1) { // 1 if successful
         DOCA_LOG_ERR("NIC: bad IPv6 addr: %s", ip_str);
         return DOCA_ERROR_INVALID_VALUE;
     }

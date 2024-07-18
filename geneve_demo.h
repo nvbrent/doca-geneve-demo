@@ -29,12 +29,6 @@ typedef uint8_t crypto_key_t[KEY_LEN / 8];
 
 extern volatile bool force_quit;
 
-union ip_addr
-{
-    rte_be32_t ipv4;
-    ipv6_addr_t ipv6;
-};
-
 enum sample_direction_indicator {
     SAMPLE_DIRECTION_EGRESS = 1234,
     SAMPLE_DIRECTION_INGRESS = 4321,
@@ -113,14 +107,14 @@ struct session_def
     struct rte_ether_addr outer_smac;
     struct rte_ether_addr outer_dmac;
     
-    union ip_addr outer_local_ip;
-    union ip_addr outer_remote_ip;
+    struct doca_flow_ip_addr outer_local_ip;
+    struct doca_flow_ip_addr outer_remote_ip;
 
     // decap_smac will be the mac addr of the port representor
     struct rte_ether_addr decap_dmac;
 
-    union ip_addr virt_local_ip;
-    union ip_addr virt_remote_ip;
+    struct doca_flow_ip_addr virt_local_ip;
+    struct doca_flow_ip_addr virt_remote_ip;
 
     struct doca_flow_pipe_entry *encap_entry;
     struct doca_flow_pipe_entry *decap_entry;

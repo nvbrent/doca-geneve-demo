@@ -20,7 +20,7 @@
 struct vnic_t
 {
     struct rte_ether_addr mac_addr;
-    union ip_addr ip;
+    struct doca_flow_ip_addr ip;
     // The same VNET ID is applied to all outgoing flows on this interface
     uint32_t vnet_id_out;
 };
@@ -31,7 +31,7 @@ struct nic_t
 {
     const char *name;
     struct rte_ether_addr mac_addr;
-    union ip_addr ip;
+    struct doca_flow_ip_addr ip;
     uint16_t num_vnics;
     struct vnic_t *vnics;
 
@@ -51,7 +51,7 @@ struct vnet_host_t
 struct route_t
 {
     const char *hostname[2];
-    union ip_addr vip[2];
+    struct doca_flow_ip_addr vip[2];
 };
 
 // A configuration which describes all the physical hosts on

@@ -424,9 +424,9 @@ create_encap_entry(
 		.parser_meta.port_meta = session->vf_port_id,
 	};
 	if (inner_addr_fam==AF_INET6) {
-		memcpy(match.outer.ip6.dst_ip, session->virt_remote_ip.ipv6, 16);
+		memcpy(match.outer.ip6.dst_ip, session->virt_remote_ip.ipv6_addr, 16);
 	} else {
-		match.outer.ip4.dst_ip = session->virt_remote_ip.ipv4;
+		match.outer.ip4.dst_ip = session->virt_remote_ip.ipv4_addr;
 	}
 
 	uint16_t next_proto = inner_addr_fam==AF_INET6 ? DOCA_FLOW_ETHER_TYPE_IPV6 : DOCA_FLOW_ETHER_TYPE_IPV4;
@@ -450,12 +450,12 @@ create_encap_entry(
 		},
 	};
 	if (outer_addr_fam==AF_INET6) {
-		memcpy(actions.encap_cfg.encap.outer.ip6.src_ip, session->outer_local_ip.ipv6, 16);
-		memcpy(actions.encap_cfg.encap.outer.ip6.dst_ip, session->outer_remote_ip.ipv6, 16);
+		memcpy(actions.encap_cfg.encap.outer.ip6.src_ip, session->outer_local_ip.ipv6_addr, 16);
+		memcpy(actions.encap_cfg.encap.outer.ip6.dst_ip, session->outer_remote_ip.ipv6_addr, 16);
 		actions.encap_cfg.encap.outer.ip6.hop_limit = 100;
 	} else {
-		actions.encap_cfg.encap.outer.ip4.src_ip = session->outer_local_ip.ipv4;
-		actions.encap_cfg.encap.outer.ip4.dst_ip = session->outer_remote_ip.ipv4;
+		actions.encap_cfg.encap.outer.ip4.src_ip = session->outer_local_ip.ipv4_addr;
+		actions.encap_cfg.encap.outer.ip4.dst_ip = session->outer_remote_ip.ipv4_addr;
 		actions.encap_cfg.encap.outer.ip4.ttl = 100;
 	}
 	memcpy(actions.encap_cfg.encap.outer.eth.src_mac, session->outer_smac.addr_bytes, RTE_ETHER_ADDR_LEN);
@@ -463,7 +463,7 @@ create_encap_entry(
 
 	if (doca_log_level_get_global_lower_limit() >= DOCA_LOG_LEVEL_INFO) {
 		char match_dst_ip[INET6_ADDRSTRLEN];
-		inet_ntop(inner_addr_fam, &session->virt_remote_ip, match_dst_ip, INET6_ADDRSTRLEN);
+		inet_ntop(inner_addr_fam, &session->virt_remote_ip.ipv6_addr, match_dst_ip, INET6_ADDRSTRLEN);
 		DOCA_LOG_INFO("Encap-Pipe Match: Session-ID: %ld, port %d, match-dst-ip: %s",
 			session->session_id, match.parser_meta.port_meta, match_dst_ip);
 
@@ -473,8 +473,8 @@ create_encap_entry(
 		char encap_dst_ip[INET6_ADDRSTRLEN];
 		rte_ether_format_addr(encap_smac, RTE_ETHER_ADDR_FMT_SIZE, &session->outer_smac);
 		rte_ether_format_addr(encap_dmac, RTE_ETHER_ADDR_FMT_SIZE, &session->outer_dmac);
-		inet_ntop(outer_addr_fam, &session->outer_local_ip, encap_src_ip, INET6_ADDRSTRLEN);
-		inet_ntop(outer_addr_fam, &session->outer_remote_ip, encap_dst_ip, INET6_ADDRSTRLEN);
+		inet_ntop(outer_addr_fam, &session->outer_local_ip.ipv6_addr, encap_src_ip, INET6_ADDRSTRLEN);
+		inet_ntop(outer_addr_fam, &session->outer_remote_ip.ipv6_addr, encap_dst_ip, INET6_ADDRSTRLEN);
 		DOCA_LOG_INFO("Encap-Pipe Action: src-mac: %s, dst-mac: %s", 
 			encap_smac, encap_dmac);
 		DOCA_LOG_INFO("Encap-Pipe Action: VNI: %d, src-ip: %s, dst-ip: %s", 
@@ -588,14 +588,14 @@ create_decap_entry(
 		},
 	};
 	if (outer_addr_fam==AF_INET6) {
-		memcpy(match.outer.ip6.src_ip, session->outer_remote_ip.ipv6, 16);
+		memcpy(match.outer.ip6.src_ip, session->outer_remote_ip.ipv6_addr, 16);
 	} else {
-		match.outer.ip4.src_ip = session->outer_remote_ip.ipv4;
+		match.outer.ip4.src_ip = session->outer_remote_ip.ipv4_addr;
 	}
 	if (inner_addr_fam==AF_INET6) {
-		memcpy(match.inner.ip6.dst_ip, session->virt_local_ip.ipv6, 16);
+		memcpy(match.inner.ip6.dst_ip, session->virt_local_ip.ipv6_addr, 16);
 	} else {
-		match.inner.ip4.dst_ip = session->virt_local_ip.ipv4;
+		match.inner.ip4.dst_ip = session->virt_local_ip.ipv4_addr;
 	}
 
 	struct doca_flow_fwd fwd = {
@@ -616,8 +616,8 @@ create_decap_entry(
 	if (doca_log_level_get_global_lower_limit() >= DOCA_LOG_LEVEL_INFO) {
 		char outer_src_ip[INET6_ADDRSTRLEN];
 		char outer_dst_ip[INET6_ADDRSTRLEN];
-		inet_ntop(outer_addr_fam, &session->outer_remote_ip, outer_src_ip, INET6_ADDRSTRLEN);
-		inet_ntop(outer_addr_fam, &session->outer_local_ip, outer_dst_ip, INET6_ADDRSTRLEN);
+		inet_ntop(outer_addr_fam, &session->outer_remote_ip.ipv6_addr, outer_src_ip, INET6_ADDRSTRLEN);
+		inet_ntop(outer_addr_fam, &session->outer_local_ip.ipv6_addr, outer_dst_ip, INET6_ADDRSTRLEN);
 		DOCA_LOG_INFO("Decap-Pipe Match: Session-ID: %ld, VNI %d, match-src-ip: %s match-dst-ip: %s",
 			session->session_id, session->vnet_id_ingress, outer_src_ip, outer_dst_ip);
 

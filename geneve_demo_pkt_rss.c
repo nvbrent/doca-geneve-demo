@@ -138,8 +138,7 @@ handle_icmp6(
         
         for (int i=0; i<config->self[port_id]->num_nics; i++) {
             const struct nic_t *my_nic = &config->self[port_id]->nics[i];
-            const ipv6_addr_t *my_ip = &my_nic->ip.ipv6;
-            if (memcmp(my_ip, request_sol_hdr->tgt_addr, sizeof(ipv6_addr_t)) != 0) {
+            if (memcmp(my_nic->ip.ipv6_addr, request_sol_hdr->tgt_addr, sizeof(ipv6_addr_t)) != 0) {
                 continue;
             }
 
@@ -163,7 +162,7 @@ handle_icmp6(
             response_eth_hdr->ether_type = RTE_BE16(RTE_ETHER_TYPE_IPV6);
 
             struct rte_ipv6_hdr *response_ipv6_hdr = (void*)&response_eth_hdr[1];
-            memcpy(response_ipv6_hdr->src_addr, my_ip, sizeof(ipv6_addr_t));
+            memcpy(response_ipv6_hdr->src_addr, my_nic->ip.ipv6_addr, sizeof(ipv6_addr_t));
             memcpy(response_ipv6_hdr->dst_addr, request_ip_hdr->src_addr, sizeof(ipv6_addr_t));
             response_ipv6_hdr->vtc_flow = RTE_BE32(0x6 << 28);
             response_ipv6_hdr->payload_len = RTE_BE16(sizeof(struct icmp6_neighbor_adv_hdr) + 8);
@@ -173,7 +172,7 @@ handle_icmp6(
             struct icmp6_neighbor_adv_hdr *response_icmp6_hdr = (void*)&response_ipv6_hdr[1];
             response_icmp6_hdr->base.type = ICMP6_NEIGHBOR_ADVERTISEMENT;
             response_icmp6_hdr->r_s_o_res = 0x4; // solicited
-            memcpy(response_icmp6_hdr->tgt_addr, my_ip, sizeof(ipv6_addr_t));
+            memcpy(response_icmp6_hdr->tgt_addr, my_nic->ip.ipv6_addr, sizeof(ipv6_addr_t));
             rte_be16_t icmp6cksum = rte_ipv6_phdr_cksum(response_ipv6_hdr, 0) +
                 rte_raw_cksum(response_icmp6_hdr, sizeof(struct icmp6_neighbor_adv_hdr));
             response_icmp6_hdr->r_s_o_res = RTE_BE32(0x3 << 24); // Solicited, Override

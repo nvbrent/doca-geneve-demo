@@ -53,34 +53,38 @@ static void install_signal_handler(void)
 
 typedef doca_error_t (*tasks_check)(struct doca_devinfo *);
 
-doca_error_t
-open_doca_device_with_pci(const char *pci_addr, tasks_check func, struct doca_dev **retval)
+doca_error_t open_doca_device_with_iface_name(const char *value,
+					      size_t val_size,
+					      tasks_check func,
+					      struct doca_dev **retval)
 {
 	struct doca_devinfo **dev_list;
 	uint32_t nb_devs;
-	uint8_t is_addr_equal = 0;
+	char buf[DOCA_DEVINFO_IFACE_NAME_SIZE] = {};
+	char val_copy[DOCA_DEVINFO_IFACE_NAME_SIZE] = {};
 	int res;
 	size_t i;
-	char *pci_addr_lowercase = strdup(pci_addr);
-	int pci_addr_len = strlen(pci_addr);
-
-	for (int i=0; i<pci_addr_len; i++) {
-		pci_addr_lowercase[i] = tolower(pci_addr[i]);
-	}
 
 	/* Set default return value */
 	*retval = NULL;
 
+	/* Setup */
+	if (val_size > DOCA_DEVINFO_IFACE_NAME_SIZE) {
+		DOCA_LOG_ERR("Value size too large. Failed to locate device");
+		return DOCA_ERROR_INVALID_VALUE;
+	}
+	memcpy(val_copy, value, val_size);
+
 	res = doca_devinfo_create_list(&dev_list, &nb_devs);
 	if (res != DOCA_SUCCESS) {
-		DOCA_LOG_ERR("Failed to load doca devices list. Doca_error value: %d", res);
+		DOCA_LOG_ERR("Failed to load doca devices list: %s", doca_error_get_descr(res));
 		return res;
 	}
 
 	/* Search */
 	for (i = 0; i < nb_devs; i++) {
-		res = doca_devinfo_is_equal_pci_addr(dev_list[i], pci_addr_lowercase, &is_addr_equal);
-		if (res == DOCA_SUCCESS && is_addr_equal) {
+		res = doca_devinfo_get_iface_name(dev_list[i], buf, DOCA_DEVINFO_IFACE_NAME_SIZE);
+		if (res == DOCA_SUCCESS && strncmp(buf, val_copy, val_size) == 0) {
 			/* If any special capabilities are needed */
 			if (func != NULL && func(dev_list[i]) != DOCA_SUCCESS)
 				continue;
@@ -89,17 +93,15 @@ open_doca_device_with_pci(const char *pci_addr, tasks_check func, struct doca_de
 			res = doca_dev_open(dev_list[i], retval);
 			if (res == DOCA_SUCCESS) {
 				doca_devinfo_destroy_list(dev_list);
-				free(pci_addr_lowercase);
 				return res;
 			}
 		}
 	}
 
-	DOCA_LOG_WARN("Matching device not found: %s", pci_addr);
+	DOCA_LOG_WARN("Matching device not found");
 	res = DOCA_ERROR_NOT_FOUND;
 
 	doca_devinfo_destroy_list(dev_list);
-	free(pci_addr_lowercase);
 	return res;
 }
 
@@ -181,9 +183,6 @@ struct flows_and_stats default_flows_and_stats = {
 int
 main(int argc, char **argv)
 {
-	char **dpdk_argv = malloc(argc * sizeof(void*)); // same as argv but without -a arguments
-	char *pci_addr_arg[max_num_pf] = {NULL};
-
 	struct vnet_config_t vnet_config = {};
 	struct geneve_demo_config config = {
 		.dpdk_config = {
@@ -194,6 +193,7 @@ main(int argc, char **argv)
 				.isolated_mode = 1,
 			},
 		},
+		.core_mask = 0x3,
 		.sample_mask = UINT32_MAX, // disabled, by default
 		.next_session_id = 4000,
 		.vnet_config = &vnet_config,
@@ -215,28 +215,9 @@ main(int argc, char **argv)
 		exit(1);
 
 	/* Parse cmdline/json arguments */
-
-	config.num_pfs = disable_dpdk_accept_args(argc, argv, dpdk_argv, pci_addr_arg);
-
-	DOCA_LOG_INFO("Num PFs from command line via -a: %d", config.num_pfs);
-	for (int i=0; i<config.num_pfs; i++) {
-		DOCA_LOG_INFO("pf[%d]: %s", i, pci_addr_arg[i]);
-	}
-
-	if (!config.num_pfs) {
-		rte_exit(EXIT_FAILURE, "Requires one device specified via -a argument");
-	}
-
-	for (uint32_t i=0; i<config.num_pfs; i++) {
-		config.mirror_id_ingress_to_rss[i] = 2 * i + 1;
-		config.mirror_id_egress_to_rss[i] = 2 * i + 2;
-	}
-
 	doca_argp_init("doca-geneve-demo", &config);
-	doca_argp_set_dpdk_program(dpdk_init);
 	geneve_demo_register_argp_params();
-
-	result = doca_argp_start(argc, dpdk_argv);
+	result = doca_argp_start(argc, argv);
 	if (result != DOCA_SUCCESS) {
 		rte_exit(EXIT_FAILURE, "Failed to parse args\n");
 	}
@@ -246,13 +227,32 @@ main(int argc, char **argv)
 		rte_exit(EXIT_FAILURE, "Failed to load config file\n");
 	}
 
+	const char *pf_netdev_names[max_num_pf] = {};
+	config.num_pfs = find_my_vnet_pfs(&vnet_config, pf_netdev_names);
+	if (!config.num_pfs) {
+		rte_exit(0, "Failed to configure vnets");
+	}
+
+	char coremask_arg[64];
+	snprintf(coremask_arg, sizeof(coremask_arg), "-c0x%x", config.core_mask);
+	
+	enum { num_eal_args = 3 };
+	char *dpdk_argv[num_eal_args] = {
+		argv[0],
+		"-a00:00.0",
+		coremask_arg
+	};
+	result = rte_eal_init(num_eal_args, dpdk_argv);
+	if (result < 0) {
+		rte_exit(1, "Failed to rte_eal_init");
+	}
 	rte_flow_dynf_metadata_register();
 
 	for (uint16_t pf_idx = 0; pf_idx < config.num_pfs; pf_idx++) {
 		uint16_t port_id = rte_eth_dev_count_avail();
-		result = open_doca_device_with_pci(pci_addr_arg[pf_idx], NULL, &config.pf_dev[port_id]);
+		result = open_doca_device_with_iface_name(pf_netdev_names[pf_idx], strlen(pf_netdev_names[pf_idx]), NULL, &config.pf_dev[port_id]);
 		if (result != DOCA_SUCCESS) {
-			rte_exit(EXIT_FAILURE, "Failed to open doca device: %s", pci_addr_arg[pf_idx]);
+			rte_exit(EXIT_FAILURE, "Failed to open doca device: %s", pf_netdev_names[pf_idx]);
 		}
 		config.port_is_pf[port_id] = true;
 		DOCA_LOG_INFO("Port %d is a PF", port_id);
@@ -284,6 +284,11 @@ main(int argc, char **argv)
 	dpdk_queues_and_ports_init(&config.dpdk_config);
 
 	struct rte_hash *session_ht = session_ht_create();
+
+	for (uint32_t i=0; i<config.num_pfs; i++) {
+		config.mirror_id_ingress_to_rss[i] = i + 1;
+		config.mirror_id_egress_to_rss[i] = config.num_pfs + i + 1;
+	}
 
 	flow_init(&config);
 

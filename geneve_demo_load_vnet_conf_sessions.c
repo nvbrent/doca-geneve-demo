@@ -20,7 +20,7 @@ struct vnet_flow_builder_config
 	struct doca_flow_pipe *decap_pipe;
 };
 
-static const struct vnet_host_t *
+const struct vnet_host_t *
 find_phys_host_by_name(
     const char *hostname, 
     const struct vnet_config_t *config)
@@ -73,7 +73,8 @@ find_self(uint16_t pf_port_id, const struct vnet_config_t *config)
 static bool
 find_nic_and_vnic(
     const struct vnet_host_t *host, 
-    const char *vnic_name, 
+    const struct doca_flow_ip_addr *vip, 
+	int inner_addr_fam,
     const struct nic_t **nic, 
     const struct vnic_t **vnic)
 {
@@ -81,7 +82,9 @@ find_nic_and_vnic(
         const struct nic_t *pf = &host->nics[i_pf];
         for (uint16_t i_vf=0; i_vf < pf->num_vnics; i_vf++) {
             const struct vnic_t *vf = &pf->vnics[i_vf];
-            if (strcmp(vf->name, vnic_name) != 0)
+			if (inner_addr_fam == AF_INET && vf->ip.ipv4_addr != vip->ipv4_addr)
+                continue;
+			if (inner_addr_fam == AF_INET6 && vf->ip.ipv6_addr != vip->ipv6_addr)
                 continue;
             *nic = pf;
             *vnic = vf;
@@ -102,7 +105,7 @@ get_session_dmac(
         // TODO: support outer IPv4
         // TODO: support subnet mask not a multiple of 8
         for (int i=0; i<local_nic->subnet_mask_len / 8; i++) {
-            if (local_nic->ip.ipv6[i] != remote_nic->ip.ipv6[i]) {
+            if (local_nic->ip.ipv6_addr[i] != remote_nic->ip.ipv6_addr[i]) {
                 // different subnets; send to gateway
                 return &local_nic->gw_mac_addr;
             }
@@ -114,9 +117,10 @@ get_session_dmac(
 static bool build_session(
     struct vnet_flow_builder_config *builder_config,
     const char *remote_host_name,
-    const char *local_vnic_name,
-    const char *remote_vnic_name)
+    const struct doca_flow_ip_addr *local_vip,
+    const struct doca_flow_ip_addr *remote_vip)
 {
+	int inner_addr_fam = builder_config->demo_config->vnet_config->inner_addr_fam;
     const struct vnet_host_t *local_host = builder_config->self;
     const struct vnet_host_t *remote_host = find_phys_host_by_name(remote_host_name, builder_config->demo_config->vnet_config);
     if (!remote_host) {
@@ -124,19 +128,23 @@ static bool build_session(
         return false;
     }
 
-    DOCA_LOG_INFO("Building session: local-host: %s, remote-host: %s, local-vnic: %s, remote-vnis: %s",
-        local_host->name, remote_host->name, local_vnic_name, remote_vnic_name);
+	char local_vip_str[INET6_ADDRSTRLEN];
+	char remote_vip_str[INET6_ADDRSTRLEN];
+    inet_ntop(inner_addr_fam, local_vip->ipv6_addr, local_vip_str, INET6_ADDRSTRLEN);
+    inet_ntop(inner_addr_fam, remote_vip->ipv6_addr, remote_vip_str, INET6_ADDRSTRLEN);
+    DOCA_LOG_INFO("Building session: local-host: %s, remote-host: %s, local-vip: %s, remote-vip: %s",
+        local_host->name, remote_host->name, local_vip_str, remote_vip_str);
 
     const struct nic_t *local_nic = NULL;
     const struct vnic_t *local_vnic = NULL;
     const struct nic_t *remote_nic = NULL;
     const struct vnic_t *remote_vnic = NULL;
-    if (!find_nic_and_vnic(local_host, local_vnic_name, &local_nic, &local_vnic)) {
-        DOCA_LOG_ERR("Host %s: Unkonwn NIC name: %s", local_host->name, local_vnic_name);
+    if (!find_nic_and_vnic(local_host, local_vip, inner_addr_fam, &local_nic, &local_vnic)) {
+        DOCA_LOG_ERR("Host %s: Unkonwn NIC: %s", local_host->name, local_vip_str);
         return false;
     }
-    if (!find_nic_and_vnic(remote_host, remote_vnic_name, &remote_nic, &remote_vnic)) {
-        DOCA_LOG_ERR("Host %s: Unkonwn NIC name: %s", remote_host_name, remote_vnic_name);
+    if (!find_nic_and_vnic(remote_host, remote_vip, inner_addr_fam, &remote_nic, &remote_vnic)) {
+        DOCA_LOG_ERR("Host %s: Unkonwn NIC: %s", remote_host_name, remote_vip_str);
         return false;
     }
     
@@ -153,21 +161,29 @@ static bool build_session(
     session->outer_dmac = *get_session_dmac(local_nic, remote_nic);
     
     if (builder_config->demo_config->vnet_config->outer_addr_fam == AF_INET) {
-        session->outer_local_ip.ipv4 = local_nic->ip.ipv4;
-        session->outer_remote_ip.ipv4 = remote_nic->ip.ipv4;
+        session->outer_local_ip.type = DOCA_FLOW_L3_META_IPV4;
+        session->outer_remote_ip.type = DOCA_FLOW_L3_META_IPV4;
+        session->outer_local_ip.ipv4_addr = local_nic->ip.ipv4_addr;
+        session->outer_remote_ip.ipv4_addr = remote_nic->ip.ipv4_addr;
     } else {
-        memcpy(session->outer_local_ip.ipv6, local_nic->ip.ipv6, sizeof(ipv6_addr_t));
-        memcpy(session->outer_remote_ip.ipv6, remote_nic->ip.ipv6, sizeof(ipv6_addr_t));
+        session->outer_local_ip.type = DOCA_FLOW_L3_META_IPV6;
+        session->outer_remote_ip.type = DOCA_FLOW_L3_META_IPV6;
+        memcpy(session->outer_local_ip.ipv6_addr, local_nic->ip.ipv6_addr, sizeof(ipv6_addr_t));
+        memcpy(session->outer_remote_ip.ipv6_addr, remote_nic->ip.ipv6_addr, sizeof(ipv6_addr_t));
     }
 
     session->decap_dmac = local_vnic->mac_addr;
 
     if (builder_config->demo_config->vnet_config->inner_addr_fam == AF_INET) {
-        session->virt_local_ip.ipv4 = local_vnic->ip.ipv4;
-        session->virt_remote_ip.ipv4 = remote_vnic->ip.ipv4;
+        session->virt_local_ip.type = DOCA_FLOW_L3_META_IPV4;
+        session->virt_remote_ip.type = DOCA_FLOW_L3_META_IPV4;
+        session->virt_local_ip.ipv4_addr = local_vnic->ip.ipv4_addr;
+        session->virt_remote_ip.ipv4_addr = remote_vnic->ip.ipv4_addr;
     } else {
-        memcpy(session->virt_local_ip.ipv6, local_vnic->ip.ipv6, sizeof(ipv6_addr_t));
-        memcpy(session->virt_remote_ip.ipv6, remote_vnic->ip.ipv6, sizeof(ipv6_addr_t));
+        session->virt_local_ip.type = DOCA_FLOW_L3_META_IPV6;
+        session->virt_remote_ip.type = DOCA_FLOW_L3_META_IPV6;
+        memcpy(session->virt_local_ip.ipv6_addr, local_vnic->ip.ipv6_addr, sizeof(ipv6_addr_t));
+        memcpy(session->virt_remote_ip.ipv6_addr, remote_vnic->ip.ipv6_addr, sizeof(ipv6_addr_t));
     }
 
     uint32_t pipe_queue = 0;
@@ -219,8 +235,8 @@ int load_vnet_conf_sessions(
             int idx_remote = idx_local ^ 1;
             build_session(&builder_config, 
                 route->hostname[idx_remote],
-                route->vnic_name[idx_local],
-                route->vnic_name[idx_remote]);
+                &route->vip[idx_local],
+                &route->vip[idx_remote]);
             ++total_sessions;
         }
         // else, this host isn't involved

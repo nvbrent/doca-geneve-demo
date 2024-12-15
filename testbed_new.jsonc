@@ -1,0 +1,879 @@
+{
+    "hosts": [
+        {
+            "name": "dgx-google-01",
+            "nics": [
+                {
+                    "ip": "fe80::5aa2:e1ff:fe46:d18e",
+                    "mac": "58:a2:e1:46:d1:8e",
+                    "name": "enp24s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.24.1",
+                            "mac": "de:0b:fa:3b:5f:4d",
+                            "name": "enp24s0v0",
+                            "vnid-out": 400
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fe46:d196",
+                    "mac": "58:a2:e1:46:d1:96",
+                    "name": "enp64s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.64.1",
+                            "mac": "86:d6:07:87:b9:9e",
+                            "name": "enp64s0v0",
+                            "vnid-out": 401
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fe46:d192",
+                    "mac": "58:a2:e1:46:d1:92",
+                    "name": "enp79s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.79.1",
+                            "mac": "5e:cd:14:08:a7:a0",
+                            "name": "enp79s0v0",
+                            "vnid-out": 402
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fe46:d18a",
+                    "mac": "58:a2:e1:46:d1:8a",
+                    "name": "enp94s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.94.1",
+                            "mac": "02:79:8a:b6:3b:08",
+                            "name": "enp94s0v0",
+                            "vnid-out": 403
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fe46:dd9e",
+                    "mac": "58:a2:e1:46:dd:9e",
+                    "name": "enp154s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.154.1",
+                            "mac": "fa:aa:1a:54:fb:13",
+                            "name": "enp154s0v0",
+                            "vnid-out": 404
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fe46:dda6",
+                    "mac": "58:a2:e1:46:dd:a6",
+                    "name": "enp192s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.192.1",
+                            "mac": "06:37:01:78:2c:b5",
+                            "name": "enp192s0v0",
+                            "vnid-out": 405
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fe46:dda2",
+                    "mac": "58:a2:e1:46:dd:a2",
+                    "name": "enp206s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.206.1",
+                            "mac": "e2:27:b2:a5:f1:87",
+                            "name": "enp206s0v0",
+                            "vnid-out": 406
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fe46:dd9a",
+                    "mac": "58:a2:e1:46:dd:9a",
+                    "name": "enp220s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.220.1",
+                            "mac": "a2:a9:ba:dd:7f:94",
+                            "name": "enp220s0v0",
+                            "vnid-out": 407
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dgx-google-02",
+            "nics": [
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9ed2",
+                    "mac": "9c:63:c0:3b:9e:d2",
+                    "name": "enp24s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.24.2",
+                            "mac": "7e:28:ff:8d:33:da",
+                            "name": "enp24s0v0",
+                            "vnid-out": 408
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9eda",
+                    "mac": "9c:63:c0:3b:9e:da",
+                    "name": "enp64s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.64.2",
+                            "mac": "ee:68:88:2e:05:42",
+                            "name": "enp64s0v0",
+                            "vnid-out": 409
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9ed6",
+                    "mac": "9c:63:c0:3b:9e:d6",
+                    "name": "enp79s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.79.2",
+                            "mac": "ae:78:34:f5:e5:76",
+                            "name": "enp79s0v0",
+                            "vnid-out": 410
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9ece",
+                    "mac": "9c:63:c0:3b:9e:ce",
+                    "name": "enp94s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.94.2",
+                            "mac": "9e:1d:42:76:95:1f",
+                            "name": "enp94s0v0",
+                            "vnid-out": 411
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:a332",
+                    "mac": "9c:63:c0:3b:a3:32",
+                    "name": "enp154s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.154.2",
+                            "mac": "c6:a7:2f:a6:b6:0b",
+                            "name": "enp154s0v0",
+                            "vnid-out": 412
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:a33a",
+                    "mac": "9c:63:c0:3b:a3:3a",
+                    "name": "enp192s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.192.2",
+                            "mac": "66:8b:19:ca:2d:ee",
+                            "name": "enp192s0v0",
+                            "vnid-out": 413
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:a336",
+                    "mac": "9c:63:c0:3b:a3:36",
+                    "name": "enp206s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.206.2",
+                            "mac": "b6:92:2c:fe:ff:ee",
+                            "name": "enp206s0v0",
+                            "vnid-out": 414
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:a32e",
+                    "mac": "9c:63:c0:3b:a3:2e",
+                    "name": "enp220s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.220.2",
+                            "mac": "42:28:c1:08:01:07",
+                            "name": "enp220s0v0",
+                            "vnid-out": 415
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dgx-google-03",
+            "nics": [
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9d22",
+                    "mac": "9c:63:c0:3b:9d:22",
+                    "name": "enp24s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.24.3",
+                            "mac": "6e:cc:60:cf:c9:99",
+                            "name": "enp24s0v0",
+                            "vnid-out": 416
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9d2a",
+                    "mac": "9c:63:c0:3b:9d:2a",
+                    "name": "enp64s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.64.3",
+                            "mac": "76:b2:3d:08:39:56",
+                            "name": "enp64s0v0",
+                            "vnid-out": 417
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9d26",
+                    "mac": "9c:63:c0:3b:9d:26",
+                    "name": "enp79s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.79.3",
+                            "mac": "12:ec:a5:79:80:5d",
+                            "name": "enp79s0v0",
+                            "vnid-out": 418
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9d1e",
+                    "mac": "9c:63:c0:3b:9d:1e",
+                    "name": "enp94s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.94.3",
+                            "mac": "1a:9a:82:2d:81:51",
+                            "name": "enp94s0v0",
+                            "vnid-out": 419
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9da2",
+                    "mac": "9c:63:c0:3b:9d:a2",
+                    "name": "enp154s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.154.3",
+                            "mac": "ae:e5:68:c7:bd:f8",
+                            "name": "enp154s0v0",
+                            "vnid-out": 420
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9daa",
+                    "mac": "9c:63:c0:3b:9d:aa",
+                    "name": "enp192s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.192.3",
+                            "mac": "2a:af:9d:e3:9a:f4",
+                            "name": "enp192s0v0",
+                            "vnid-out": 421
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9da6",
+                    "mac": "9c:63:c0:3b:9d:a6",
+                    "name": "enp206s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.206.3",
+                            "mac": "5e:54:99:e4:9f:b4",
+                            "name": "enp206s0v0",
+                            "vnid-out": 422
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9d9e",
+                    "mac": "9c:63:c0:3b:9d:9e",
+                    "name": "enp220s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.220.3",
+                            "mac": "86:94:a1:0f:bc:5e",
+                            "name": "enp220s0v0",
+                            "vnid-out": 423
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dgx-google-04",
+            "nics": [
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9e62",
+                    "mac": "9c:63:c0:3b:9e:62",
+                    "name": "enp24s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.24.4",
+                            "mac": "aa:8a:eb:db:f1:88",
+                            "name": "enp24s0v0",
+                            "vnid-out": 424
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9e6a",
+                    "mac": "9c:63:c0:3b:9e:6a",
+                    "name": "enp64s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.64.4",
+                            "mac": "ae:f7:64:b8:4d:5e",
+                            "name": "enp64s0v0",
+                            "vnid-out": 425
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9e66",
+                    "mac": "9c:63:c0:3b:9e:66",
+                    "name": "enp79s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.79.4",
+                            "mac": "c2:38:09:d8:af:47",
+                            "name": "enp79s0v0",
+                            "vnid-out": 426
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::9e63:c0ff:fe3b:9e5e",
+                    "mac": "9c:63:c0:3b:9e:5e",
+                    "name": "enp94s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.94.4",
+                            "mac": "6e:20:6c:9c:a1:93",
+                            "name": "enp94s0v0",
+                            "vnid-out": 427
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:febb:e09a",
+                    "mac": "58:a2:e1:bb:e0:9a",
+                    "name": "enp154s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.154.4",
+                            "mac": "ce:64:e1:1e:3c:87",
+                            "name": "enp154s0v0",
+                            "vnid-out": 428
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:febb:e0a2",
+                    "mac": "58:a2:e1:bb:e0:a2",
+                    "name": "enp192s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.192.4",
+                            "mac": "96:e1:7c:87:14:78",
+                            "name": "enp192s0v0",
+                            "vnid-out": 429
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:febb:e09e",
+                    "mac": "58:a2:e1:bb:e0:9e",
+                    "name": "enp206s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.206.4",
+                            "mac": "5a:ea:5f:35:55:0f",
+                            "name": "enp206s0v0",
+                            "vnid-out": 430
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:febb:e096",
+                    "mac": "58:a2:e1:bb:e0:96",
+                    "name": "enp220s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.220.4",
+                            "mac": "2e:51:5f:69:ee:d8",
+                            "name": "enp220s0v0",
+                            "vnid-out": 431
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dgx-google-05",
+            "nics": [
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:47bc",
+                    "mac": "58:a2:e1:f0:47:bc",
+                    "name": "enp24s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.24.5",
+                            "mac": "2e:84:ce:9a:ff:6e",
+                            "name": "enp24s0v0",
+                            "vnid-out": 432
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:47c4",
+                    "mac": "58:a2:e1:f0:47:c4",
+                    "name": "enp64s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.64.5",
+                            "mac": "d6:04:e8:3f:22:bb",
+                            "name": "enp64s0v0",
+                            "vnid-out": 433
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:47c0",
+                    "mac": "58:a2:e1:f0:47:c0",
+                    "name": "enp79s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.79.5",
+                            "mac": "16:ae:79:66:91:24",
+                            "name": "enp79s0v0",
+                            "vnid-out": 434
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:47b8",
+                    "mac": "58:a2:e1:f0:47:b8",
+                    "name": "enp94s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.94.5",
+                            "mac": "66:64:e7:2c:e8:9c",
+                            "name": "enp94s0v0",
+                            "vnid-out": 435
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:47cc",
+                    "mac": "58:a2:e1:f0:47:cc",
+                    "name": "enp154s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.154.5",
+                            "mac": "ba:ab:9a:f1:57:ca",
+                            "name": "enp154s0v0",
+                            "vnid-out": 436
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:47d4",
+                    "mac": "58:a2:e1:f0:47:d4",
+                    "name": "enp192s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.192.5",
+                            "mac": "8e:2b:a7:80:f3:b5",
+                            "name": "enp192s0v0",
+                            "vnid-out": 437
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:47d0",
+                    "mac": "58:a2:e1:f0:47:d0",
+                    "name": "enp206s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.206.5",
+                            "mac": "32:1a:2b:44:07:db",
+                            "name": "enp206s0v0",
+                            "vnid-out": 438
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:47c8",
+                    "mac": "58:a2:e1:f0:47:c8",
+                    "name": "enp220s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.220.5",
+                            "mac": "da:e2:93:e2:95:81",
+                            "name": "enp220s0v0",
+                            "vnid-out": 439
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dgx-google-06",
+            "nics": [
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3cfc",
+                    "mac": "58:a2:e1:f0:3c:fc",
+                    "name": "enp24s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.24.6",
+                            "mac": "86:94:85:cb:08:5b",
+                            "name": "enp24s0v0",
+                            "vnid-out": 440
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3d04",
+                    "mac": "58:a2:e1:f0:3d:04",
+                    "name": "enp64s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.64.6",
+                            "mac": "f2:6f:11:0c:b6:24",
+                            "name": "enp64s0v0",
+                            "vnid-out": 441
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3d00",
+                    "mac": "58:a2:e1:f0:3d:00",
+                    "name": "enp79s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.79.6",
+                            "mac": "2a:f9:41:ac:89:c5",
+                            "name": "enp79s0v0",
+                            "vnid-out": 442
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3cf8",
+                    "mac": "58:a2:e1:f0:3c:f8",
+                    "name": "enp94s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.94.6",
+                            "mac": "5e:48:80:3d:20:48",
+                            "name": "enp94s0v0",
+                            "vnid-out": 443
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3d2c",
+                    "mac": "58:a2:e1:f0:3d:2c",
+                    "name": "enp154s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.154.6",
+                            "mac": "32:6c:56:a1:d4:41",
+                            "name": "enp154s0v0",
+                            "vnid-out": 444
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3d34",
+                    "mac": "58:a2:e1:f0:3d:34",
+                    "name": "enp192s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.192.6",
+                            "mac": "fe:aa:81:c5:55:c2",
+                            "name": "enp192s0v0",
+                            "vnid-out": 445
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3d30",
+                    "mac": "58:a2:e1:f0:3d:30",
+                    "name": "enp206s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.206.6",
+                            "mac": "62:2c:0b:06:e5:2c",
+                            "name": "enp206s0v0",
+                            "vnid-out": 446
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3d28",
+                    "mac": "58:a2:e1:f0:3d:28",
+                    "name": "enp220s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.220.6",
+                            "mac": "ce:9f:35:da:07:ba",
+                            "name": "enp220s0v0",
+                            "vnid-out": 447
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dgx-google-07",
+            "nics": [
+                {
+                    "ip": "fe80::5aa2:e1ff:fea9:b676",
+                    "mac": "58:a2:e1:a9:b6:76",
+                    "name": "enp24s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.24.7",
+                            "mac": "da:9c:47:16:95:6f",
+                            "name": "enp24s0v0",
+                            "vnid-out": 448
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fea9:b67e",
+                    "mac": "58:a2:e1:a9:b6:7e",
+                    "name": "enp64s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.64.7",
+                            "mac": "96:10:04:a6:88:55",
+                            "name": "enp64s0v0",
+                            "vnid-out": 449
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:dead:beef",
+                    "mac": "58:a2:e1:a9:b6:7a",
+                    "name": "enp79s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.79.7",
+                            "mac": "26:a2:24:be:2d:2c",
+                            "name": "enp79s0v0",
+                            "vnid-out": 450
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fea9:b672",
+                    "mac": "58:a2:e1:a9:b6:72",
+                    "name": "enp94s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.94.7",
+                            "mac": "2a:83:c1:24:bd:49",
+                            "name": "enp94s0v0",
+                            "vnid-out": 451
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:dead:beef",
+                    "mac": "58:a2:e1:a9:b6:86",
+                    "name": "enp154s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.154.7",
+                            "mac": "b2:ae:26:1f:08:ec",
+                            "name": "enp154s0v0",
+                            "vnid-out": 452
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fea9:b68e",
+                    "mac": "58:a2:e1:a9:b6:8e",
+                    "name": "enp192s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.192.7",
+                            "mac": "62:fe:5d:bf:5b:f7",
+                            "name": "enp192s0v0",
+                            "vnid-out": 453
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:dead:beef",
+                    "mac": "58:a2:e1:a9:b6:8a",
+                    "name": "enp206s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.206.7",
+                            "mac": "6a:86:bf:8a:21:bb",
+                            "name": "enp206s0v0",
+                            "vnid-out": 454
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:dead:beef",
+                    "mac": "58:a2:e1:a9:b6:82",
+                    "name": "enp220s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.220.7",
+                            "mac": "42:1f:44:f0:41:49",
+                            "name": "enp220s0v0",
+                            "vnid-out": 455
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dgx-google-08",
+            "nics": [
+                {
+                    "ip": "fe80::5aa2:e1ff:febb:df0a",
+                    "mac": "58:a2:e1:bb:df:0a",
+                    "name": "enp24s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.24.8",
+                            "mac": "46:f6:cc:4b:87:72",
+                            "name": "enp24s0v0",
+                            "vnid-out": 456
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:febb:df12",
+                    "mac": "58:a2:e1:bb:df:12",
+                    "name": "enp64s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.64.8",
+                            "mac": "ea:39:f6:01:e2:2c",
+                            "name": "enp64s0v0",
+                            "vnid-out": 457
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:febb:df0e",
+                    "mac": "58:a2:e1:bb:df:0e",
+                    "name": "enp79s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.79.8",
+                            "mac": "ba:1e:93:e8:5f:88",
+                            "name": "enp79s0v0",
+                            "vnid-out": 458
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:febb:df06",
+                    "mac": "58:a2:e1:bb:df:06",
+                    "name": "enp94s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.94.8",
+                            "mac": "a6:db:92:db:52:72",
+                            "name": "enp94s0v0",
+                            "vnid-out": 459
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3aec",
+                    "mac": "58:a2:e1:f0:3a:ec",
+                    "name": "enp154s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.154.8",
+                            "mac": "0e:a1:09:cb:2c:a1",
+                            "name": "enp154s0v0",
+                            "vnid-out": 460
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3af4",
+                    "mac": "58:a2:e1:f0:3a:f4",
+                    "name": "enp192s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.192.8",
+                            "mac": "8a:78:4c:8a:e8:64",
+                            "name": "enp192s0v0",
+                            "vnid-out": 461
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3af0",
+                    "mac": "58:a2:e1:f0:3a:f0",
+                    "name": "enp206s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.206.8",
+                            "mac": "02:d9:5d:31:e4:1d",
+                            "name": "enp206s0v0",
+                            "vnid-out": 462
+                        }
+                    ]
+                },
+                {
+                    "ip": "fe80::5aa2:e1ff:fef0:3ae8",
+                    "mac": "58:a2:e1:f0:3a:e8",
+                    "name": "enp220s0np0",
+                    "vnics": [
+                        {
+                            "ip": "192.168.220.8",
+                            "mac": "02:37:37:96:b3:8f",
+                            "name": "enp220s0v0",
+                            "vnid-out": 463
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "inner-ip-ver": 4,
+    "outer-ip-ver": 6,
+    "route-all-to-all": true
+}

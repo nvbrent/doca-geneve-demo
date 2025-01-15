@@ -30,8 +30,8 @@ typedef uint8_t crypto_key_t[KEY_LEN / 8];
 extern volatile bool force_quit;
 
 enum sample_direction_indicator {
-    SAMPLE_DIRECTION_EGRESS = 1234,
-    SAMPLE_DIRECTION_INGRESS = 4321,
+    SAMPLE_DIRECTION_EGRESS = 0x1234,
+    SAMPLE_DIRECTION_INGRESS = 0x4321,
 };
 
 enum { max_num_pf = 8, max_vf_per_pf = 2, max_num_ports = max_num_pf * max_vf_per_pf };
@@ -82,6 +82,8 @@ struct geneve_demo_config
 	uint32_t mirror_id_ingress_to_rss[max_num_pf];
 	uint32_t mirror_id_egress_to_rss[max_num_pf];
 	uint32_t sample_mask; // 0 for 1:1 sampling, UINT32_MAX to disable
+
+	bool drop_samples;
 
 	const char *vnet_config_file;
 

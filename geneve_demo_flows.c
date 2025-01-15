@@ -1,5 +1,6 @@
 #include <doca_flow.h>
 #include <doca_log.h>
+#include <doca_bitfield.h>
 #include <rte_ethdev.h>
 
 #include <geneve_demo_flows.h>
@@ -236,8 +237,13 @@ create_sampling_pipe(
 	uint32_t mirror_id, 
 	struct doca_flow_pipe *next_pipe,
 	struct doca_flow_pipe *miss_pipe,
+	bool drop_samples,
 	struct doca_flow_pipe_entry **sampling_entry)
 {
+	if (drop_samples && domain == DOCA_FLOW_PIPE_DOMAIN_DEFAULT) {
+		random_mask = UINT16_MAX; // never match/drop on ingress
+	}
+
 	struct doca_flow_match match = {
 		.parser_meta.random = 0,
 	};
@@ -249,7 +255,7 @@ create_sampling_pipe(
 		.shared_mirror_id = mirror_id,
 	};
 	struct doca_flow_actions set_meta = {
-		.meta.pkt_meta = pkt_meta,
+		.meta.pkt_meta = DOCA_HTOBE32(pkt_meta),
 	};
 	struct doca_flow_actions *actions_arr[] = {&set_meta};
 
@@ -258,7 +264,7 @@ create_sampling_pipe(
 	};
 	struct doca_flow_actions *actions_masks_arr[] = {&set_meta_mask};
 	struct doca_flow_fwd fwd = {
-		.type = DOCA_FLOW_FWD_PIPE,
+		.type = drop_samples ? DOCA_FLOW_FWD_DROP : DOCA_FLOW_FWD_PIPE,
 		.next_pipe = next_pipe,
 	};
 	struct doca_flow_fwd fwd_miss = {
@@ -275,8 +281,10 @@ create_sampling_pipe(
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_domain(pipe_cfg, domain));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_nr_entries(pipe_cfg, 1));
 	IF_SUCCESS(result, doca_flow_pipe_cfg_set_match(pipe_cfg, &match, &match_mask));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_monitor(pipe_cfg, &monitor_mirror));
-	IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_arr, actions_masks_arr, NULL, 1));
+	if (!drop_samples) {
+		IF_SUCCESS(result, doca_flow_pipe_cfg_set_monitor(pipe_cfg, &monitor_mirror));
+		IF_SUCCESS(result, doca_flow_pipe_cfg_set_actions(pipe_cfg, actions_arr, actions_masks_arr, NULL, 1));
+	} // else, we are dropping the packet, so don't bother mirroring it to RSS
 	IF_SUCCESS(result, doca_flow_pipe_create(pipe_cfg, &fwd, &fwd_miss, &pipe));
 	if (pipe_cfg) {
 		doca_flow_pipe_cfg_destroy(pipe_cfg);

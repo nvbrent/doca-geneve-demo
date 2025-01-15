@@ -200,6 +200,8 @@ main(int argc, char **argv)
 		.arp_response_meta_flag = 0x50, // any arbitrary non-zero value
 	};
 
+	config.drop_samples = true;
+
 	/* Register a logger backend */
 	struct doca_log_backend *sdk_log;
 	doca_error_t result = doca_log_backend_create_standard();
@@ -325,6 +327,7 @@ main(int argc, char **argv)
 			config.mirror_id_ingress_to_rss[pf_idx], // mirror dest when sampled
 			flows->decap_pipe, // dest after sampling
 			flows->decap_pipe, // dest after not sampling
+			config.drop_samples,
 			&flows->sampling_entry_list[1]);
 
 		flows->egr_sampl_pipe = create_sampling_pipe(
@@ -335,6 +338,7 @@ main(int argc, char **argv)
 			config.mirror_id_egress_to_rss[pf_idx], // mirror dest when sampled
 			flows->fwd_to_uplink_pipe, // dest after sampling
 			flows->fwd_to_uplink_pipe, // dest after not sampling
+			config.drop_samples,
 			&flows->sampling_entry_list[2]);
 
 		flows->encap_pipe = create_encap_tunnel_pipe(
@@ -399,8 +403,10 @@ main(int argc, char **argv)
 				flows->prev_arp_resp_pipe_total_count = show_entry_list_counters(pf_idx, "ARP Resp pipe", flows->arp_response_entry_list, &config, true);
 			}
 
-			if (show_entry_list_counters(pf_idx, NULL, flows->sampling_entry_list, &config, false) != flows->prev_sampling_total_count) {
-				flows->prev_sampling_total_count = show_entry_list_counters(pf_idx, "Sampling pipe", flows->sampling_entry_list, &config, true);
+			if (!config.drop_samples) {
+				if (show_entry_list_counters(pf_idx, NULL, flows->sampling_entry_list, &config, false) != flows->prev_sampling_total_count) {
+					flows->prev_sampling_total_count = show_entry_list_counters(pf_idx, "Sampling pipe", flows->sampling_entry_list, &config, true);
+				}
 			}
 		}
 	}

@@ -254,7 +254,7 @@ handle_pkt_meta(
         meta_name = "EGRESS";
         count = ++egress_sample_count;
     }
-    DOCA_LOG_INFO("Pkt Meta: %d (%s), total: %ld, pkt length: %d", pkt_meta, meta_name, count, packet->pkt_len);
+    DOCA_LOG_INFO("Pkt Meta: 0x%x (%s), total: %ld, pkt length: %d", pkt_meta, meta_name, count, packet->pkt_len);
     return 0;
 }
 

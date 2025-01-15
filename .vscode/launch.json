@@ -10,7 +10,7 @@
             "request": "launch",
             "type": "cppdbg",
             "args": [
-                "--config", "/swgwork/bschartung/repos/doca-geneve-demo/testbed.jsonc",
+                "--config", "/swgwork/bschartung/repos/doca-geneve-demo/testbed_new.jsonc",
             ],
             "cwd": "${workspaceFolder}"
         }
